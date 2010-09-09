@@ -150,10 +150,6 @@ public:
 
   unsigned sessionTimeoutParameter() const { return fSessionTimeoutParameter; }
 
-#ifdef SUPPORT_REAL_RTSP
-  Boolean usingRealNetworksChallengeResponse() const { return fRealChallengeStr != NULL; }
-#endif
-
 protected:
   RTSPClient(UsageEnvironment& env, int verbosityLevel,
 	     char const* applicationName, portNumBits tunnelOverHTTPPortNum);
@@ -211,19 +207,12 @@ private:
       unsigned fUserAgentHeaderStrSize;
   int fInputSocketNum, fOutputSocketNum;
   unsigned fServerAddress;
-  static unsigned fCSeq; // sequence number, used in consecutive requests
-      // Note: it's static, to ensure that it differs if more than one
-      // connection is made to the same server, using the same URL.
-      // Some servers (e.g., DSS) may have problems with this otherwise.
+  unsigned fCSeq; // sequence number, used in consecutive requests
   char* fBaseURL;
   Authenticator fCurrentAuthenticator;
   unsigned char fTCPStreamIdCount; // used for (optional) RTP/TCP
   char* fLastSessionId;
   unsigned fSessionTimeoutParameter; // optionally set in response "Session:" headers
-#ifdef SUPPORT_REAL_RTSP
-  char* fRealChallengeStr;
-  char* fRealETagStr;
-#endif
   unsigned fDescribeStatusCode;
   // 0: OK; 1: connection failed; 2: stream unavailable
   char* fResponseBuffer;

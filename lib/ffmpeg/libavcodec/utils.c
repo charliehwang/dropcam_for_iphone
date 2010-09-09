@@ -21,12 +21,9 @@
  */
 
 /**
- * @file libavcodec/utils.c
+ * @file
  * utils.
  */
-
-/* needed for mkstemp() */
-#define _XOPEN_SOURCE 600
 
 #include "libavutil/avstring.h"
 #include "libavutil/integer.h"
@@ -37,15 +34,11 @@
 #include "opt.h"
 #include "imgconvert.h"
 #include "audioconvert.h"
-#include "libxvid_internal.h"
 #include "internal.h"
 #include <stdlib.h>
 #include <stdarg.h>
 #include <limits.h>
 #include <float.h>
-#if !HAVE_MKSTEMP
-#include <fcntl.h>
-#endif
 
 static int volatile entangled_thread_counter=0;
 int (*ff_lockmgr_cb)(void **mutex, enum AVLockOp op);
@@ -224,7 +217,7 @@ int avcodec_check_dimensions(void *av_log_ctx, unsigned int w, unsigned int h){
         return 0;
 
     av_log(av_log_ctx, AV_LOG_ERROR, "picture size invalid (%ux%u)\n", w, h);
-    return -1;
+    return AVERROR(EINVAL);
 }
 
 int avcodec_default_get_buffer(AVCodecContext *s, AVFrame *pic){
@@ -323,7 +316,7 @@ int avcodec_default_get_buffer(AVCodecContext *s, AVFrame *pic){
             if(buf->base[i]==NULL) return -1;
             memset(buf->base[i], 128, size[i]);
 
-            // no edge if EDEG EMU or not planar YUV
+            // no edge if EDGE EMU or not planar YUV
             if((s->flags&CODEC_FLAG_EMU_EDGE) || !size[2])
                 buf->data[i] = buf->base[i];
             else
@@ -709,6 +702,7 @@ av_cold int avcodec_close(AVCodecContext *avctx)
     if (avctx->codec && avctx->codec->close)
         avctx->codec->close(avctx);
     avcodec_default_free_buffers(avctx);
+    avctx->coded_frame = NULL;
     av_freep(&avctx->priv_data);
     if(avctx->codec && avctx->codec->encode)
         av_freep(&avctx->extradata);
@@ -724,14 +718,18 @@ av_cold int avcodec_close(AVCodecContext *avctx)
 
 AVCodec *avcodec_find_encoder(enum CodecID id)
 {
-    AVCodec *p;
+    AVCodec *p, *experimental=NULL;
     p = first_avcodec;
     while (p) {
-        if (p->encode != NULL && p->id == id)
-            return p;
+        if (p->encode != NULL && p->id == id) {
+            if (p->capabilities & CODEC_CAP_EXPERIMENTAL && !experimental) {
+                experimental = p;
+            } else
+                return p;
+        }
         p = p->next;
     }
-    return NULL;
+    return experimental;
 }
 
 AVCodec *avcodec_find_encoder_by_name(const char *name)
@@ -797,6 +795,21 @@ static int get_bit_rate(AVCodecContext *ctx)
     return bit_rate;
 }
 
+size_t av_get_codec_tag_string(char *buf, size_t buf_size, unsigned int codec_tag)
+{
+    int i, len, ret = 0;
+
+    for (i = 0; i < 4; i++) {
+        len = snprintf(buf, buf_size,
+                       isprint(codec_tag&0xFF) ? "%c" : "[%d]", codec_tag&0xFF);
+        buf      += len;
+        buf_size  = buf_size > len ? buf_size - len : 0;
+        ret      += len;
+        codec_tag>>=8;
+    }
+    return ret;
+}
+
 void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
 {
     const char *codec_name;
@@ -820,17 +833,9 @@ void avcodec_string(char *buf, int buf_size, AVCodecContext *enc, int encode)
         codec_name = enc->codec_name;
     } else {
         /* output avi tags */
-        if(   isprint(enc->codec_tag&0xFF) && isprint((enc->codec_tag>>8)&0xFF)
-           && isprint((enc->codec_tag>>16)&0xFF) && isprint((enc->codec_tag>>24)&0xFF)){
-            snprintf(buf1, sizeof(buf1), "%c%c%c%c / 0x%04X",
-                     enc->codec_tag & 0xff,
-                     (enc->codec_tag >> 8) & 0xff,
-                     (enc->codec_tag >> 16) & 0xff,
-                     (enc->codec_tag >> 24) & 0xff,
-                      enc->codec_tag);
-        } else {
-            snprintf(buf1, sizeof(buf1), "0x%04x", enc->codec_tag);
-        }
+        char tag_buf[32];
+        av_get_codec_tag_string(tag_buf, sizeof(tag_buf), enc->codec_tag);
+        snprintf(buf1, sizeof(buf1), "%s / 0x%04X", tag_buf, enc->codec_tag);
         codec_name = buf1;
     }
 
@@ -1060,42 +1065,6 @@ unsigned int av_xiphlacing(unsigned char *s, unsigned int v)
     return n;
 }
 
-/* Wrapper to work around the lack of mkstemp() on mingw/cygin.
- * Also, tries to create file in /tmp first, if possible.
- * *prefix can be a character constant; *filename will be allocated internally.
- * Returns file descriptor of opened file (or -1 on error)
- * and opened file name in **filename. */
-int av_tempfile(char *prefix, char **filename) {
-    int fd=-1;
-#if !HAVE_MKSTEMP
-    *filename = tempnam(".", prefix);
-#else
-    size_t len = strlen(prefix) + 12; /* room for "/tmp/" and "XXXXXX\0" */
-    *filename = av_malloc(len);
-#endif
-    /* -----common section-----*/
-    if (*filename == NULL) {
-        av_log(NULL, AV_LOG_ERROR, "ff_tempfile: Cannot allocate file name\n");
-        return -1;
-    }
-#if !HAVE_MKSTEMP
-    fd = open(*filename, O_RDWR | O_BINARY | O_CREAT, 0444);
-#else
-    snprintf(*filename, len, "/tmp/%sXXXXXX", prefix);
-    fd = mkstemp(*filename);
-    if (fd < 0) {
-        snprintf(*filename, len, "./%sXXXXXX", prefix);
-        fd = mkstemp(*filename);
-    }
-#endif
-    /* -----common section-----*/
-    if (fd < 0) {
-        av_log(NULL, AV_LOG_ERROR, "ff_tempfile: Cannot open temporary file %s\n", *filename);
-        return -1;
-    }
-    return fd; /* success */
-}
-
 typedef struct {
     const char *abbr;
     int width, height;
@@ -1292,4 +1261,12 @@ int av_lockmgr_register(int (*cb)(void **mutex, enum AVLockOp op))
             return -1;
     }
     return 0;
+}
+
+unsigned int ff_toupper4(unsigned int x)
+{
+    return     toupper( x     &0xFF)
+            + (toupper((x>>8 )&0xFF)<<8 )
+            + (toupper((x>>16)&0xFF)<<16)
+            + (toupper((x>>24)&0xFF)<<24);
 }

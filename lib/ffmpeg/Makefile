@@ -13,6 +13,7 @@ PROGS      := $(addsuffix   $(EXESUF), $(PROGS-yes))
 PROGS_G     = $(addsuffix _g$(EXESUF), $(PROGS-yes))
 OBJS        = $(addsuffix .o,          $(PROGS-yes)) cmdutils.o
 MANPAGES    = $(addprefix doc/, $(addsuffix .1, $(PROGS-yes)))
+HTMLPAGES   = $(addprefix doc/, $(addsuffix -doc.html, $(PROGS-yes)))
 TOOLS       = $(addprefix tools/, $(addsuffix $(EXESUF), cws2fws pktdumper probetest qt-faststart trasher))
 HOSTPROGS   = $(addprefix tests/, audiogen videogen rotozoom tiny_psnr)
 
@@ -20,6 +21,7 @@ BASENAMES   = ffmpeg ffplay ffprobe ffserver
 ALLPROGS    = $(addsuffix   $(EXESUF), $(BASENAMES))
 ALLPROGS_G  = $(addsuffix _g$(EXESUF), $(BASENAMES))
 ALLMANPAGES = $(addsuffix .1, $(BASENAMES))
+ALLHTMLPAGES= $(addsuffix -doc.html, $(BASENAMES))
 
 FFLIBS-$(CONFIG_AVDEVICE) += avdevice
 FFLIBS-$(CONFIG_AVFILTER) += avfilter
@@ -101,9 +103,13 @@ version.h .version:
 
 alltools: $(TOOLS)
 
-documentation: $(addprefix doc/, developer.html faq.html ffmpeg-doc.html \
-                                 ffplay-doc.html ffprobe-doc.html ffserver-doc.html \
-                                 general.html libavfilter.html $(ALLMANPAGES))
+documentation: $(addprefix doc/, developer.html faq.html general.html libavfilter.html \
+                                 $(ALLHTMLPAGES) $(ALLMANPAGES))
+
+$(HTMLPAGES) $(MANPAGES): doc/fftools-common-opts.texi
+
+doc/ffmpeg.pod doc/ffmpeg-doc.html: doc/filters.texi
+doc/ffplay.pod doc/ffplay-doc.html: doc/filters.texi
 
 doc/%.html: TAG = HTML
 doc/%.html: doc/%.texi
@@ -191,6 +197,7 @@ VCODEC_TESTS-$(call ENCDEC,MPEG2VIDEO)       += mpeg2 mpeg2thread
 VCODEC_TESTS-$(call ENCDEC,MPEG4)            += mpeg4 mpeg4adv mpeg4nr mpeg4thread error rc
 VCODEC_TESTS-$(call ENCDEC,MSMPEG4V1)        += msmpeg4
 VCODEC_TESTS-$(call ENCDEC,MSMPEG4V2)        += msmpeg4v2
+VCODEC_TESTS-$(call ENCDEC,RAWVIDEO)         += rgb yuv
 VCODEC_TESTS-$(call ENCDEC,ROQ)              += roq
 VCODEC_TESTS-$(call ENCDEC,RV10)             += rv10
 VCODEC_TESTS-$(call ENCDEC,RV20)             += rv20
@@ -261,6 +268,7 @@ LAVFI_TESTS =           \
     vflip               \
     vflip_crop          \
     vflip_vflip         \
+#   lavfi_pix_fmts      \
 
 ACODEC_TESTS := $(addprefix regtest-, $(ACODEC_TESTS) $(ACODEC_TESTS-yes))
 VCODEC_TESTS := $(addprefix regtest-, $(VCODEC_TESTS) $(VCODEC_TESTS-yes))
@@ -309,7 +317,7 @@ $(LAVF_TESTS):
 	@$(SRC_PATH)/tests/lavf-regression.sh $@ lavf tests/vsynth1 "$(TARGET_EXEC)" "$(TARGET_PATH)"
 	@diff -u -w $(call REFFILE,lavf,$@) $(call RESFILE,lavf,$@)
 
-$(LAVFI_TESTS):
+$(LAVFI_TESTS): tools/lavfi-showfiltfmts$(EXESUF)
 	@echo "TEST LAVFI $(@:regtest-%=%)"
 	@$(SRC_PATH)/tests/lavfi-regression.sh $@ lavfi tests/vsynth1 "$(TARGET_EXEC)" "$(TARGET_PATH)"
 	@diff -u -w $(call REFFILE,lavfi,$@) $(call RESFILE,lavfi,$@)
@@ -339,14 +347,15 @@ tests/data/asynth1.sw: tests/audiogen$(HOSTEXESUF)
 tests/seek_test$(EXESUF): tests/seek_test.o $(FF_DEP_LIBS)
 	$(LD) $(FF_LDFLAGS) -o $@ $< $(FF_EXTRALIBS)
 
-ifdef SAMPLES
 include $(SRC_PATH_BARE)/tests/fate.mak
+
+ifdef SAMPLES
 fate: $(FATE_TESTS)
-$(FATE_TESTS):
+$(FATE_TESTS): ffmpeg$(EXESUF)
 	@echo "TEST FATE   $(@:fate-%=%)"
 	@$(SRC_PATH)/tests/fate-run.sh $@ "$(SAMPLES)" "$(TARGET_EXEC)" "$(TARGET_PATH)" '$(CMD)'
 else
-fate:
+fate $(FATE_TESTS):
 	@echo "SAMPLES not specified, cannot run FATE"
 endif
 

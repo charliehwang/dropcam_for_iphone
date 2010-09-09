@@ -20,7 +20,7 @@
  */
 
 /**
- * @file libavcodec/options.c
+ * @file
  * Options definition for AVCodecContext.
  */
 
@@ -160,7 +160,10 @@ static const AVOption options[]={
 {"very", "strictly conform to a older more strict version of the spec or reference software", 0, FF_OPT_TYPE_CONST, FF_COMPLIANCE_VERY_STRICT, INT_MIN, INT_MAX, V|D|E, "strict"},
 {"strict", "strictly conform to all the things in the spec no matter what consequences", 0, FF_OPT_TYPE_CONST, FF_COMPLIANCE_STRICT, INT_MIN, INT_MAX, V|D|E, "strict"},
 {"normal", NULL, 0, FF_OPT_TYPE_CONST, FF_COMPLIANCE_NORMAL, INT_MIN, INT_MAX, V|D|E, "strict"},
-{"inofficial", "allow unofficial extensions", 0, FF_OPT_TYPE_CONST, FF_COMPLIANCE_INOFFICIAL, INT_MIN, INT_MAX, V|D|E, "strict"},
+#if LIBAVCODEC_VERSION_MAJOR < 53
+{"inofficial", "allow unofficial extensions (deprecated - use unofficial)", 0, FF_OPT_TYPE_CONST, FF_COMPLIANCE_UNOFFICIAL, INT_MIN, INT_MAX, V|D|E, "strict"},
+#endif
+{"unofficial", "allow unofficial extensions", 0, FF_OPT_TYPE_CONST, FF_COMPLIANCE_UNOFFICIAL, INT_MIN, INT_MAX, V|D|E, "strict"},
 {"experimental", "allow non standardized experimental things", 0, FF_OPT_TYPE_CONST, FF_COMPLIANCE_EXPERIMENTAL, INT_MIN, INT_MAX, V|D|E, "strict"},
 {"b_qoffset", "qp offset between P and B frames", OFFSET(b_quant_offset), FF_OPT_TYPE_FLOAT, 1.25, -FLT_MAX, FLT_MAX, V|E},
 {"er", "set error detection aggressivity", OFFSET(error_recognition), FF_OPT_TYPE_INT, FF_ER_CAREFUL, INT_MIN, INT_MAX, A|V|D, "er"},
@@ -411,6 +414,9 @@ static const AVOption options[]={
 {"aq_strength", "specify aq strength", OFFSET(aq_strength), FF_OPT_TYPE_FLOAT, 1.0, 0, FLT_MAX, V|E},
 {"rc_lookahead", "specify number of frames to look ahead for frametype", OFFSET(rc_lookahead), FF_OPT_TYPE_INT, 40, 0, INT_MAX, V|E},
 {"ssim", "ssim will be calculated during encoding", 0, FF_OPT_TYPE_CONST, CODEC_FLAG2_SSIM, INT_MIN, INT_MAX, V|E, "flags2"},
+{"intra_refresh", "use periodic insertion of intra blocks instead of keyframes", 0, FF_OPT_TYPE_CONST, CODEC_FLAG2_INTRA_REFRESH, INT_MIN, INT_MAX, V|E, "flags2"},
+{"crf_max", "in crf mode, prevents vbv from lowering quality beyond this point", OFFSET(crf_max), FF_OPT_TYPE_FLOAT, DEFAULT, 0, 51, V|E},
+{"log_level_offset", "set the log level offset", OFFSET(log_level_offset), FF_OPT_TYPE_INT, 0, INT_MIN, INT_MAX },
 {NULL},
 };
 
@@ -421,7 +427,7 @@ static const AVOption options[]={
 #undef D
 #undef DEFAULT
 
-static const AVClass av_codec_context_class = { "AVCodecContext", context_to_name, options };
+static const AVClass av_codec_context_class = { "AVCodecContext", context_to_name, options, LIBAVUTIL_VERSION_INT, OFFSET(log_level_offset) };
 
 void avcodec_get_context_defaults2(AVCodecContext *s, enum AVMediaType codec_type){
     int flags=0;
@@ -488,9 +494,6 @@ int avcodec_copy_context(AVCodecContext *dest, const AVCodecContext *src)
     dest->slice_offset    = NULL;
     dest->internal_buffer = NULL;
     dest->hwaccel         = NULL;
-    dest->execute         = NULL;
-    dest->execute2        = NULL;
-    dest->reget_buffer    = NULL;
     dest->thread_opaque   = NULL;
 
     /* reallocate values that should be allocated separately */

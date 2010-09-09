@@ -177,8 +177,7 @@ RTSPServer::RTSPServer(UsageEnvironment& env,
   : Medium(env),
     fServerSocket(ourSocket), fServerPort(ourPort),
     fAuthDB(authDatabase), fReclamationTestSeconds(reclamationTestSeconds),
-    fServerMediaSessions(HashTable::create(STRING_HASH_KEYS)),
-    fSessionIdCounter(0) {
+    fServerMediaSessions(HashTable::create(STRING_HASH_KEYS)) {
 #ifdef USE_SIGNALS
   // Ignore the SIGPIPE signal, so that clients on the same host that are killed
   // don't also kill us:
@@ -237,8 +236,11 @@ void RTSPServer::incomingConnectionHandler1() {
   envir() << "accept()ed connection from " << our_inet_ntoa(clientAddr.sin_addr) << '\n';
 #endif
 
-  // Create a new object for this RTSP session:
-  (void)createNewClientSession(++fSessionIdCounter, clientSocket, clientAddr);
+  // Create a new object for this RTSP session.
+  // (Choose a random 32-bit integer for the session id (it will be encoded as a 8-digit hex number).  We don't bother checking for
+  //  a collision; the probability of two concurrent sessions getting the same session id is very low.)
+  unsigned sessionId = (unsigned)our_random();
+  (void)createNewClientSession(sessionId, clientSocket, clientAddr);
 }
 
 
@@ -297,43 +299,58 @@ void RTSPServer::RTSPClientSession::resetRequestBuffer() {
   fLastCRLF = &fRequestBuffer[-3]; // hack
 }
 
-void RTSPServer::RTSPClientSession
-::incomingRequestHandler(void* instance, int /*mask*/) {
+void RTSPServer::RTSPClientSession::incomingRequestHandler(void* instance, int /*mask*/) {
   RTSPClientSession* session = (RTSPClientSession*)instance;
   session->incomingRequestHandler1();
 }
 
 void RTSPServer::RTSPClientSession::incomingRequestHandler1() {
+  struct sockaddr_in dummy; // 'from' address, meaningless in this case
+
+  int bytesRead = readSocket(envir(), fClientSocket, &fRequestBuffer[fRequestBytesAlreadySeen], fRequestBufferBytesLeft, dummy);
+  handleRequestBytes(bytesRead);
+}
+
+void RTSPServer::RTSPClientSession::handleAlternativeRequestByte(void* instance, u_int8_t requestByte) {
+  RTSPClientSession* session = (RTSPClientSession*)instance;
+  session->handleAlternativeRequestByte1(requestByte);
+}
+
+void RTSPServer::RTSPClientSession::handleAlternativeRequestByte1(u_int8_t requestByte) {
+  // Add this character to our buffer; then try to handle the data that we have buffered so far:
+  if (fRequestBufferBytesLeft == 0) return;
+  fRequestBuffer[fRequestBytesAlreadySeen] = requestByte;
+  handleRequestBytes(1);
+}
+
+void RTSPServer::RTSPClientSession::handleRequestBytes(int newBytesRead) {
   noteLiveness();
 
-  struct sockaddr_in dummy; // 'from' address, meaningless in this case
-  Boolean endOfMsg = False;
-  unsigned char* ptr = &fRequestBuffer[fRequestBytesAlreadySeen];
-
-  int bytesRead = readSocket(envir(), fClientSocket,
-			     ptr, fRequestBufferBytesLeft, dummy);
-  if (bytesRead <= 0 || (unsigned)bytesRead >= fRequestBufferBytesLeft) {
+  if (newBytesRead <= 0 || (unsigned)newBytesRead >= fRequestBufferBytesLeft) {
     // Either the client socket has died, or the request was too big for us.
     // Terminate this connection:
 #ifdef DEBUG
-    fprintf(stderr, "RTSPClientSession[%p]::incomingRequestHandler1() read %d bytes (of %d); terminating connection!\n", this, bytesRead, fRequestBufferBytesLeft);
+    fprintf(stderr, "RTSPClientSession[%p]::handleRequestBytes() read %d new bytes (of %d); terminating connection!\n", this, newBytesRead, fRequestBufferBytesLeft);
 #endif
     delete this;
     return;
   }
+
+  Boolean endOfMsg = False;
+  unsigned char* ptr = &fRequestBuffer[fRequestBytesAlreadySeen];
 #ifdef DEBUG
-  ptr[bytesRead] = '\0';
-  fprintf(stderr, "RTSPClientSession[%p]::incomingRequestHandler1() read %d bytes:%s\n", this, bytesRead, ptr);
+  ptr[newBytesRead] = '\0';
+  fprintf(stderr, "RTSPClientSession[%p]::handleRequestBytes() read %d new bytes:%s\n", this, newBytesRead, ptr);
 #endif
 
   // Look for the end of the message: <CR><LF><CR><LF>
   unsigned char *tmpPtr = ptr;
   if (fRequestBytesAlreadySeen > 0) --tmpPtr;
       // in case the last read ended with a <CR>
-  while (tmpPtr < &ptr[bytesRead-1]) {
+  while (tmpPtr < &ptr[newBytesRead-1]) {
     if (*tmpPtr == '\r' && *(tmpPtr+1) == '\n') {
       if (tmpPtr - fLastCRLF == 2) { // This is it:
-	endOfMsg = 1;
+	endOfMsg = True;
 	break;
       }
       fLastCRLF = tmpPtr;
@@ -341,8 +358,8 @@ void RTSPServer::RTSPClientSession::incomingRequestHandler1() {
     ++tmpPtr;
   }
 
-  fRequestBufferBytesLeft -= bytesRead;
-  fRequestBytesAlreadySeen += bytesRead;
+  fRequestBufferBytesLeft -= newBytesRead;
+  fRequestBytesAlreadySeen += newBytesRead;
 
   if (!endOfMsg) return; // subsequent reads will be needed to complete the request
 
@@ -431,8 +448,7 @@ static char const* dateHeader() {
 }
 
 static char const* allowedCommandNames
-//  = "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, GET_PARAMETER, SET_PARAMETER";
-= "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, SET_PARAMETER"; // TEMP HACK to stop VLC from using "GET_PARAMETER" as a client 'keep-alive' indicator; we don't need this, and it currently causes problems for RTP-over-TCP streams.
+= "OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE, GET_PARAMETER, SET_PARAMETER";
 
 void RTSPServer::RTSPClientSession::handleCmd_bad(char const* /*cseq*/) {
   // Don't do anything with "cseq", because it might be nonsense
@@ -743,7 +759,7 @@ void RTSPServer::RTSPClientSession
                  "CSeq: %s\r\n"
                  "%s"
                  "Transport: RTP/AVP;multicast;destination=%s;source=%s;port=%d-%d;ttl=%d\r\n"
-                 "Session: %d\r\n\r\n",
+                 "Session: %08X\r\n\r\n",
                  cseq,
                  dateHeader(),
                  destAddrStr, sourceAddrStr, ntohs(serverRTPPort.num()), ntohs(serverRTCPPort.num()), destinationTTL,
@@ -759,7 +775,7 @@ void RTSPServer::RTSPClientSession
                  "CSeq: %s\r\n"
                  "%s"
                  "Transport: %s;multicast;destination=%s;source=%s;port=%d;ttl=%d\r\n"
-                 "Session: %d\r\n\r\n",
+                 "Session: %08X\r\n\r\n",
                  cseq,
                  dateHeader(),
                  streamingModeString, destAddrStr, sourceAddrStr, ntohs(serverRTPPort.num()), destinationTTL,
@@ -774,7 +790,7 @@ void RTSPServer::RTSPClientSession
 	       "CSeq: %s\r\n"
 	       "%s"
 	       "Transport: RTP/AVP;unicast;destination=%s;source=%s;client_port=%d-%d;server_port=%d-%d\r\n"
-	       "Session: %d\r\n\r\n",
+	       "Session: %08X\r\n\r\n",
 	       cseq,
 	       dateHeader(),
 	       destAddrStr, sourceAddrStr, ntohs(clientRTPPort.num()), ntohs(clientRTCPPort.num()), ntohs(serverRTPPort.num()), ntohs(serverRTCPPort.num()),
@@ -787,7 +803,7 @@ void RTSPServer::RTSPClientSession
 	       "CSeq: %s\r\n"
 	       "%s"
 	       "Transport: RTP/AVP/TCP;unicast;destination=%s;source=%s;interleaved=%d-%d\r\n"
-	       "Session: %d\r\n\r\n",
+	       "Session: %08X\r\n\r\n",
 	       cseq,
 	       dateHeader(),
 	       destAddrStr, sourceAddrStr, rtpChannelId, rtcpChannelId,
@@ -800,7 +816,7 @@ void RTSPServer::RTSPClientSession
 	       "CSeq: %s\r\n"
 	       "%s"
 	       "Transport: %s;unicast;destination=%s;source=%s;client_port=%d;server_port=%d\r\n"
-	       "Session: %d\r\n\r\n",
+	       "Session: %08X\r\n\r\n",
 	       cseq,
 	       dateHeader(),
 	       streamingModeString, destAddrStr, sourceAddrStr, ntohs(clientRTPPort.num()), ntohs(serverRTPPort.num()),
@@ -988,10 +1004,9 @@ void RTSPServer::RTSPClientSession
       unsigned rtpTimestamp = 0;
       fStreamStates[i].subsession->startStream(fOurSessionId,
 					       fStreamStates[i].streamToken,
-					       (TaskFunc*)noteClientLiveness,
-					       this,
-					       rtpSeqNum,
-					       rtpTimestamp);
+					       (TaskFunc*)noteClientLiveness, this,
+					       rtpSeqNum, rtpTimestamp,
+					       handleAlternativeRequestByte, this);
       const char *urlSuffix = fStreamStates[i].subsession->trackId();
       char* prevRTPInfo = rtpInfo;
       unsigned rtpInfoSize = rtpInfoFmtSize
@@ -1028,7 +1043,7 @@ void RTSPServer::RTSPClientSession
 	   "%s"
 	   "%s"
 	   "%s"
-	   "Session: %d\r\n"
+	   "Session: %08X\r\n"
 	   "%s\r\n",
 	   cseq,
 	   dateHeader(),
@@ -1050,7 +1065,7 @@ void RTSPServer::RTSPClientSession
     }
   }
   snprintf((char*)fResponseBuffer, sizeof fResponseBuffer,
-	   "RTSP/1.0 200 OK\r\nCSeq: %s\r\n%sSession: %d\r\n\r\n",
+	   "RTSP/1.0 200 OK\r\nCSeq: %s\r\n%sSession: %08X\r\n\r\n",
 	   cseq, dateHeader(), fOurSessionId);
 }
 
@@ -1060,7 +1075,7 @@ void RTSPServer::RTSPClientSession
   // We implement "GET_PARAMETER" just as a 'keep alive',
   // and send back an empty response:
   snprintf((char*)fResponseBuffer, sizeof fResponseBuffer,
-	   "RTSP/1.0 200 OK\r\nCSeq: %s\r\n%sSession: %d\r\n\r\n",
+	   "RTSP/1.0 200 OK\r\nCSeq: %s\r\n%sSession: %08X\r\n\r\n",
 	   cseq, dateHeader(), fOurSessionId);
 }
 

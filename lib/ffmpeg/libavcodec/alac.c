@@ -20,7 +20,7 @@
  */
 
 /**
- * @file libavcodec/alac.c
+ * @file
  * ALAC (Apple Lossless Audio Codec) decoder
  * @author 2005 David Hammerton
  *
@@ -547,11 +547,11 @@ static int alac_decode_frame(AVCodecContext *avctx,
 
     if (!isnotcompressed) {
         /* so it is compressed */
-        int16_t predictor_coef_table[channels][32];
-        int predictor_coef_num[channels];
-        int prediction_type[channels];
-        int prediction_quantitization[channels];
-        int ricemodifier[channels];
+        int16_t predictor_coef_table[MAX_CHANNELS][32];
+        int predictor_coef_num[MAX_CHANNELS];
+        int prediction_type[MAX_CHANNELS];
+        int prediction_quantitization[MAX_CHANNELS];
+        int ricemodifier[MAX_CHANNELS];
         int i, chan;
 
         interlacing_shift = get_bits(&alac->gb, 8);

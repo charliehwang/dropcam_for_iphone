@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHCircularBufferStack.m
  
- Copyright (c) 2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2009-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -12,23 +12,34 @@
 
 @implementation CHCircularBufferStack
 
+// Overridden from parent class to make the stack grow left from the last slot.
+- (id) initWithCapacity:(NSUInteger)capacity {
+	if ((self = [super initWithCapacity:capacity]) == nil) return nil;
+	// Initialize head and tail to last slot; avoids wrapping on second insert.
+	headIndex = tailIndex = arrayCapacity - 1;
+	return self;
+}
+
 // Overridden from parent class so objects are inserted in reverse order.
 - (id) initWithArray:(NSArray*)anArray {
 	NSUInteger capacity = 16;
 	while (capacity <= [anArray count])
 		capacity *= 2;
 	if ([self initWithCapacity:capacity] == nil) return nil;
-	// Add objects in reverse order so headIndex ends up at 0.
-	headIndex = tailIndex = count = [anArray count];
+	if ([anArray count] > 0) {
+		headIndex = capacity; // Puts the bottom of the stack at the last slot.
+		tailIndex = 0;
+		count = [anArray count];
 #if OBJC_API_2
-	for (id anObject in anArray)
+		for (id anObject in anArray)
 #else
-	NSEnumerator *e = [anArray objectEnumerator];
-	id anObject;
-	while (anObject = [e nextObject])
+		NSEnumerator *e = [anArray objectEnumerator];
+		id anObject;
+		while (anObject = [e nextObject])
 #endif
-	{
-		array[--headIndex] = [anObject retain];
+		{
+			array[--headIndex] = [anObject retain];
+		}
 	}
 	return self;
 }
@@ -49,7 +60,7 @@
 }
 
 - (void) pushObject:(id)anObject {
-	[self prependObject:anObject];
+	[self insertObject:anObject atIndex:0];
 }
 
 - (id) topObject {

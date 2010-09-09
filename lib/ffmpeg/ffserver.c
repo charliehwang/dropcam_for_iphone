@@ -293,7 +293,8 @@ static int rtp_new_av_stream(HTTPContext *c,
 static const char *my_program_name;
 static const char *my_program_dir;
 
-static const char *config_filename;
+static const char *config_filename = "/etc/ffserver.conf";
+
 static int ffserver_debug;
 static int ffserver_daemon;
 static int no_launch;
@@ -846,6 +847,8 @@ static void close_connection(HTTPContext *c)
         ctx = c->rtp_ctx[i];
         if (ctx) {
             av_write_trailer(ctx);
+            av_metadata_free(&ctx->metadata);
+            av_free(ctx->streams[0]);
             av_free(ctx);
         }
         h = c->rtp_handles[i];
@@ -2231,10 +2234,10 @@ static int http_prepare_data(HTTPContext *c)
     switch(c->state) {
     case HTTPSTATE_SEND_DATA_HEADER:
         memset(&c->fmt_ctx, 0, sizeof(c->fmt_ctx));
-        av_metadata_set(&c->fmt_ctx.metadata, "author"   ,c->stream->author);
-        av_metadata_set(&c->fmt_ctx.metadata, "comment"  ,c->stream->comment);
-        av_metadata_set(&c->fmt_ctx.metadata, "copyright",c->stream->copyright);
-        av_metadata_set(&c->fmt_ctx.metadata, "title"    ,c->stream->title);
+        av_metadata_set2(&c->fmt_ctx.metadata, "author"   , c->stream->author   , 0);
+        av_metadata_set2(&c->fmt_ctx.metadata, "comment"  , c->stream->comment  , 0);
+        av_metadata_set2(&c->fmt_ctx.metadata, "copyright", c->stream->copyright, 0);
+        av_metadata_set2(&c->fmt_ctx.metadata, "title"    , c->stream->title    , 0);
 
         for(i=0;i<c->stream->nb_streams;i++) {
             AVStream *st;
@@ -2279,6 +2282,7 @@ static int http_prepare_data(HTTPContext *c)
             http_log("Error writing output header\n");
             return -1;
         }
+        av_metadata_free(&c->fmt_ctx.metadata);
 
         len = url_close_dyn_buf(c->fmt_ctx.pb, &c->pb_buffer);
         c->buffer_ptr = c->pb_buffer;
@@ -2302,12 +2306,16 @@ static int http_prepare_data(HTTPContext *c)
         else {
             AVPacket pkt;
         redo:
-            if (av_read_frame(c->fmt_in, &pkt) < 0) {
-                if (c->stream->feed && c->stream->feed->feed_opened) {
+            ret = av_read_frame(c->fmt_in, &pkt);
+            if (ret < 0) {
+                if (c->stream->feed) {
                     /* if coming from feed, it means we reached the end of the
                        ffm file, so must wait for more data */
                     c->state = HTTPSTATE_WAIT_FEED;
                     return 1; /* state changed */
+                } else if (ret == AVERROR(EAGAIN)) {
+                    /* input not ready, come back later */
+                    return 0;
                 } else {
                     if (c->stream->loop) {
                         av_close_input_file(c->fmt_in);
@@ -2342,7 +2350,7 @@ static int http_prepare_data(HTTPContext *c)
                         }
                     }
                     for(i=0;i<c->stream->nb_streams;i++) {
-                        if (c->feed_streams[i] == pkt.stream_index) {
+                        if (c->stream->feed_streams[i] == pkt.stream_index) {
                             AVStream *st = c->fmt_in->streams[source_index];
                             pkt.stream_index = i;
                             if (pkt.flags & AV_PKT_FLAG_KEY &&
@@ -2364,8 +2372,7 @@ static int http_prepare_data(HTTPContext *c)
                     if (c->is_packetized) {
                         /* compute send time and duration */
                         c->cur_pts = av_rescale_q(pkt.dts, ist->time_base, AV_TIME_BASE_Q);
-                        if (ist->start_time != AV_NOPTS_VALUE)
-                            c->cur_pts -= av_rescale_q(ist->start_time, ist->time_base, AV_TIME_BASE_Q);
+                        c->cur_pts -= c->first_pts;
                         c->cur_frame_duration = av_rescale_q(pkt.duration, ist->time_base, AV_TIME_BASE_Q);
                         /* find RTP context */
                         c->packet_stream_index = pkt.stream_index;
@@ -2628,6 +2635,7 @@ static int http_receive_data(HTTPContext *c)
                 ff_neterrno() != FF_NETERROR(EINTR))
                 /* error : close connection */
                 goto fail;
+            return 0;
         } else if (len == 0) {
             /* end of connection : close it */
             goto fail;
@@ -2740,14 +2748,7 @@ static int http_receive_data(HTTPContext *c)
             for (i = 0; i < s->nb_streams; i++) {
                 AVStream *fst = feed->streams[i];
                 AVStream *st = s->streams[i];
-                memcpy(fst->codec, st->codec, sizeof(AVCodecContext));
-                if (fst->codec->extradata_size) {
-                    fst->codec->extradata = av_malloc(fst->codec->extradata_size);
-                    if (!fst->codec->extradata)
-                        goto fail;
-                    memcpy(fst->codec->extradata, st->codec->extradata,
-                           fst->codec->extradata_size);
-                }
+                avcodec_copy_context(fst->codec, st->codec);
             }
 
             av_close_input_stream(s);
@@ -2776,7 +2777,7 @@ static void rtsp_reply_header(HTTPContext *c, enum RTSPStatusCode error_number)
 {
     const char *str;
     time_t ti;
-    char *p;
+    struct tm *tm;
     char buf2[32];
 
     switch(error_number) {
@@ -2823,11 +2824,8 @@ static void rtsp_reply_header(HTTPContext *c, enum RTSPStatusCode error_number)
 
     /* output GMT time */
     ti = time(NULL);
-    p = ctime(&ti);
-    strcpy(buf2, p);
-    p = buf2 + strlen(p) - 1;
-    if (*p == '\n')
-        *p = '\0';
+    tm = gmtime(&ti);
+    strftime(buf2, sizeof(buf2), "%a, %d %b %Y %H:%M:%S", tm);
     url_fprintf(c->pb, "Date: %s GMT\r\n", buf2);
 }
 
@@ -2878,7 +2876,7 @@ static int rtsp_parse_request(HTTPContext *c)
     if (*p == '\n')
         p++;
     while (*p != '\0') {
-        p1 = strchr(p, '\n');
+        p1 = memchr(p, '\n', (char *)c->buffer_ptr - p);
         if (!p1)
             break;
         p2 = p1;
@@ -2938,13 +2936,15 @@ static int prepare_sdp_description(FFStream *stream, uint8_t **pbuffer,
     if (avc == NULL) {
         return -1;
     }
-    av_metadata_set(&avc->metadata, "title",
-                    stream->title[0] ? stream->title : "No Title");
+    av_metadata_set2(&avc->metadata, "title",
+                     stream->title[0] ? stream->title : "No Title", 0);
     avc->nb_streams = stream->nb_streams;
     if (stream->is_multicast) {
         snprintf(avc->filename, 1024, "rtp://%s:%d?multicast=1?ttl=%d",
                  inet_ntoa(stream->multicast_ip),
                  stream->multicast_port, stream->multicast_ttl);
+    } else {
+        snprintf(avc->filename, 1024, "rtp://0.0.0.0");
     }
 
     for(i = 0; i < stream->nb_streams; i++) {
@@ -2953,6 +2953,7 @@ static int prepare_sdp_description(FFStream *stream, uint8_t **pbuffer,
     }
     *pbuffer = av_mallocz(2048);
     avf_sdp_create(&avc, 1, *pbuffer, 2048);
+    av_metadata_free(&avc->metadata);
     av_free(avc);
 
     return strlen(*pbuffer);
@@ -2977,7 +2978,7 @@ static void rtsp_cmd_describe(HTTPContext *c, const char *url)
     struct sockaddr_in my_addr;
 
     /* find which url is asked */
-    ff_url_split(NULL, 0, NULL, 0, NULL, 0, NULL, path1, sizeof(path1), url);
+    av_url_split(NULL, 0, NULL, 0, NULL, 0, NULL, path1, sizeof(path1), url);
     path = path1;
     if (*path == '/')
         path++;
@@ -3005,10 +3006,12 @@ static void rtsp_cmd_describe(HTTPContext *c, const char *url)
         return;
     }
     rtsp_reply_header(c, RTSP_STATUS_OK);
+    url_fprintf(c->pb, "Content-Base: %s/\r\n", url);
     url_fprintf(c->pb, "Content-Type: application/sdp\r\n");
     url_fprintf(c->pb, "Content-Length: %d\r\n", content_length);
     url_fprintf(c->pb, "\r\n");
     put_buffer(c->pb, content, content_length);
+    av_free(content);
 }
 
 static HTTPContext *find_rtp_session(const char *session_id)
@@ -3042,7 +3045,7 @@ static void rtsp_cmd_setup(HTTPContext *c, const char *url,
                            RTSPMessageHeader *h)
 {
     FFStream *stream;
-    int stream_index, port;
+    int stream_index, rtp_port, rtcp_port;
     char buf[1024];
     char path1[1024];
     const char *path;
@@ -3052,7 +3055,7 @@ static void rtsp_cmd_setup(HTTPContext *c, const char *url,
     RTSPActionServerSetup setup;
 
     /* find which url is asked */
-    ff_url_split(NULL, 0, NULL, 0, NULL, 0, NULL, path1, sizeof(path1), url);
+    av_url_split(NULL, 0, NULL, 0, NULL, 0, NULL, path1, sizeof(path1), url);
     path = path1;
     if (*path == '/')
         path++;
@@ -3156,11 +3159,12 @@ static void rtsp_cmd_setup(HTTPContext *c, const char *url,
 
     switch(rtp_c->rtp_protocol) {
     case RTSP_LOWER_TRANSPORT_UDP:
-        port = rtp_get_local_port(rtp_c->rtp_handles[stream_index]);
+        rtp_port = rtp_get_local_rtp_port(rtp_c->rtp_handles[stream_index]);
+        rtcp_port = rtp_get_local_rtcp_port(rtp_c->rtp_handles[stream_index]);
         url_fprintf(c->pb, "Transport: RTP/AVP/UDP;unicast;"
                     "client_port=%d-%d;server_port=%d-%d",
-                    th->client_port_min, th->client_port_min + 1,
-                    port, port + 1);
+                    th->client_port_min, th->client_port_max,
+                    rtp_port, rtcp_port);
         break;
     case RTSP_LOWER_TRANSPORT_TCP:
         url_fprintf(c->pb, "Transport: RTP/AVP/TCP;interleaved=%d-%d",
@@ -3194,7 +3198,7 @@ static HTTPContext *find_rtp_session_with_url(const char *url,
         return NULL;
 
     /* find which url is asked */
-    ff_url_split(NULL, 0, NULL, 0, NULL, 0, NULL, path1, sizeof(path1), url);
+    av_url_split(NULL, 0, NULL, 0, NULL, 0, NULL, path1, sizeof(path1), url);
     path = path1;
     if (*path == '/')
         path++;
@@ -3374,7 +3378,6 @@ static int rtp_new_av_stream(HTTPContext *c,
     st = av_mallocz(sizeof(AVStream));
     if (!st)
         goto fail;
-    st->codec= avcodec_alloc_context();
     ctx->nb_streams = 1;
     ctx->streams[0] = st;
 
@@ -3450,16 +3453,28 @@ static int rtp_new_av_stream(HTTPContext *c,
 /********************************************************************/
 /* ffserver initialization */
 
-static AVStream *add_av_stream1(FFStream *stream, AVCodecContext *codec)
+static AVStream *add_av_stream1(FFStream *stream, AVCodecContext *codec, int copy)
 {
     AVStream *fst;
 
     fst = av_mallocz(sizeof(AVStream));
     if (!fst)
         return NULL;
-    fst->codec= avcodec_alloc_context();
+    if (copy) {
+        fst->codec= avcodec_alloc_context();
+        memcpy(fst->codec, codec, sizeof(AVCodecContext));
+        if (codec->extradata_size) {
+            fst->codec->extradata = av_malloc(codec->extradata_size);
+            memcpy(fst->codec->extradata, codec->extradata,
+                codec->extradata_size);
+        }
+    } else {
+        /* live streams must use the actual feed's codec since it may be
+         * updated later to carry extradata needed by the streams.
+         */
+        fst->codec = codec;
+    }
     fst->priv_data = av_mallocz(sizeof(FeedData));
-    memcpy(fst->codec, codec, sizeof(AVCodecContext));
     fst->index = stream->nb_streams;
     av_set_pts_info(fst, 33, 1, 90000);
     stream->streams[stream->nb_streams++] = fst;
@@ -3501,7 +3516,7 @@ static int add_av_stream(FFStream *feed, AVStream *st)
         }
     }
 
-    fst = add_av_stream1(feed, av);
+    fst = add_av_stream1(feed, av, 0);
     if (!fst)
         return -1;
     return feed->nb_streams - 1;
@@ -3612,7 +3627,7 @@ static void build_file_streams(void)
                 extract_mpeg4_header(infile);
 
                 for(i=0;i<infile->nb_streams;i++)
-                    add_av_stream1(stream, infile->streams[i]->codec);
+                    add_av_stream1(stream, infile->streams[i]->codec, 1);
 
                 av_close_input_file(infile);
             }
@@ -3679,7 +3694,7 @@ static void build_feed_streams(void)
                             ccs = ss->codec;
 #define CHECK_CODEC(x)  (ccf->x != ccs->x)
 
-                            if (CHECK_CODEC(codec) || CHECK_CODEC(codec_type)) {
+                            if (CHECK_CODEC(codec_id) || CHECK_CODEC(codec_type)) {
                                 http_log("Codecs do not match for stream %d\n", i);
                                 matches = 0;
                             } else if (CHECK_CODEC(bit_rate) || CHECK_CODEC(flags)) {
@@ -3842,7 +3857,8 @@ static void add_codec(FFStream *stream, AVCodecContext *av)
             av->nsse_weight = 8;
 
         av->frame_skip_cmp = FF_CMP_DCTMAX;
-        av->me_method = ME_EPZS;
+        if (!av->me_method)
+            av->me_method = ME_EPZS;
         av->rc_buffer_aggressivity = 1.0;
 
         if (!av->rc_eq)
@@ -3930,6 +3946,65 @@ static int ffserver_opt_default(const char *opt, const char *arg,
     return ret;
 }
 
+static int ffserver_opt_preset(const char *arg,
+                       AVCodecContext *avctx, int type,
+                       enum CodecID *audio_id, enum CodecID *video_id)
+{
+    FILE *f=NULL;
+    char filename[1000], tmp[1000], tmp2[1000], line[1000];
+    int i, ret = 0;
+    const char *base[3]= { getenv("FFMPEG_DATADIR"),
+                           getenv("HOME"),
+                           FFMPEG_DATADIR,
+                         };
+
+    for(i=0; i<3 && !f; i++){
+        if(!base[i])
+            continue;
+        snprintf(filename, sizeof(filename), "%s%s/%s.ffpreset", base[i], i != 1 ? "" : "/.ffmpeg", arg);
+        f= fopen(filename, "r");
+        if(!f){
+            AVCodec *codec = avcodec_find_encoder(avctx->codec_id);
+            if (codec) {
+                snprintf(filename, sizeof(filename), "%s%s/%s-%s.ffpreset", base[i],  i != 1 ? "" : "/.ffmpeg", codec->name, arg);
+                f= fopen(filename, "r");
+            }
+        }
+    }
+
+    if(!f){
+        fprintf(stderr, "File for preset '%s' not found\n", arg);
+        return 1;
+    }
+
+    while(!feof(f)){
+        int e= fscanf(f, "%999[^\n]\n", line) - 1;
+        if(line[0] == '#' && !e)
+            continue;
+        e|= sscanf(line, "%999[^=]=%999[^\n]\n", tmp, tmp2) - 2;
+        if(e){
+            fprintf(stderr, "%s: Invalid syntax: '%s'\n", filename, line);
+            ret = 1;
+            break;
+        }
+        if(!strcmp(tmp, "acodec")){
+            *audio_id = opt_audio_codec(tmp2);
+        }else if(!strcmp(tmp, "vcodec")){
+            *video_id = opt_video_codec(tmp2);
+        }else if(!strcmp(tmp, "scodec")){
+            /* opt_subtitle_codec(tmp2); */
+        }else if(ffserver_opt_default(tmp, tmp2, avctx, type) < 0){
+            fprintf(stderr, "%s: Invalid option or argument: '%s', parsed as '%s' = '%s'\n", filename, line, tmp, tmp2);
+            ret = 1;
+            break;
+        }
+    }
+
+    fclose(f);
+
+    return ret;
+}
+
 static AVOutputFormat *ffserver_guess_format(const char *short_name, const char *filename,
                                              const char *mime_type)
 {
@@ -3947,6 +4022,17 @@ static AVOutputFormat *ffserver_guess_format(const char *short_name, const char 
     }
 
     return fmt;
+}
+
+static void report_config_error(const char *filename, int line_num, int *errors, const char *fmt, ...)
+{
+    va_list vl;
+    va_start(vl, fmt);
+    fprintf(stderr, "%s:%d: ", filename, line_num);
+    vfprintf(stderr, fmt, vl);
+    va_end(vl);
+
+    (*errors)++;
 }
 
 static int parse_ffconfig(const char *filename)
@@ -3979,6 +4065,8 @@ static int parse_ffconfig(const char *filename)
     redirect = NULL;
     audio_id = CODEC_ID_NONE;
     video_id = CODEC_ID_NONE;
+
+#define ERROR(...) report_config_error(filename, line_num, &errors, __VA_ARGS__)
     for(;;) {
         if (fgets(line, sizeof(line), f) == NULL)
             break;
@@ -3995,17 +4083,13 @@ static int parse_ffconfig(const char *filename)
             get_arg(arg, sizeof(arg), &p);
             val = atoi(arg);
             if (val < 1 || val > 65536) {
-                fprintf(stderr, "%s:%d: Invalid port: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("Invalid_port: %s\n", arg);
             }
             my_http_addr.sin_port = htons(val);
         } else if (!strcasecmp(cmd, "BindAddress")) {
             get_arg(arg, sizeof(arg), &p);
             if (resolve_host(&my_http_addr.sin_addr, arg) != 0) {
-                fprintf(stderr, "%s:%d: Invalid host/IP address: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("%s:%d: Invalid host/IP address: %s\n", arg);
             }
         } else if (!strcasecmp(cmd, "NoDaemon")) {
             ffserver_daemon = 0;
@@ -4013,34 +4097,26 @@ static int parse_ffconfig(const char *filename)
             get_arg(arg, sizeof(arg), &p);
             val = atoi(arg);
             if (val < 1 || val > 65536) {
-                fprintf(stderr, "%s:%d: Invalid port: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("%s:%d: Invalid port: %s\n", arg);
             }
             my_rtsp_addr.sin_port = htons(atoi(arg));
         } else if (!strcasecmp(cmd, "RTSPBindAddress")) {
             get_arg(arg, sizeof(arg), &p);
             if (resolve_host(&my_rtsp_addr.sin_addr, arg) != 0) {
-                fprintf(stderr, "%s:%d: Invalid host/IP address: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("Invalid host/IP address: %s\n", arg);
             }
         } else if (!strcasecmp(cmd, "MaxHTTPConnections")) {
             get_arg(arg, sizeof(arg), &p);
             val = atoi(arg);
             if (val < 1 || val > 65536) {
-                fprintf(stderr, "%s:%d: Invalid MaxHTTPConnections: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("Invalid MaxHTTPConnections: %s\n", arg);
             }
             nb_max_http_connections = val;
         } else if (!strcasecmp(cmd, "MaxClients")) {
             get_arg(arg, sizeof(arg), &p);
             val = atoi(arg);
             if (val < 1 || val > nb_max_http_connections) {
-                fprintf(stderr, "%s:%d: Invalid MaxClients: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("Invalid MaxClients: %s\n", arg);
             } else {
                 nb_max_connections = val;
             }
@@ -4049,9 +4125,7 @@ static int parse_ffconfig(const char *filename)
             get_arg(arg, sizeof(arg), &p);
             llval = atoll(arg);
             if (llval < 10 || llval > 10000000) {
-                fprintf(stderr, "%s:%d: Invalid MaxBandwidth: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("Invalid MaxBandwidth: %s\n", arg);
             } else
                 max_bandwidth = llval;
         } else if (!strcasecmp(cmd, "CustomLog")) {
@@ -4062,8 +4136,7 @@ static int parse_ffconfig(const char *filename)
             /* Feed related options */
             char *q;
             if (stream || feed) {
-                fprintf(stderr, "%s:%d: Already in a tag\n",
-                        filename, line_num);
+                ERROR("Already in a tag\n");
             } else {
                 feed = av_mallocz(sizeof(FFStream));
                 get_arg(feed->filename, sizeof(feed->filename), &p);
@@ -4073,9 +4146,7 @@ static int parse_ffconfig(const char *filename)
 
                 for (s = first_feed; s; s = s->next) {
                     if (!strcmp(feed->filename, s->filename)) {
-                        fprintf(stderr, "%s:%d: Feed '%s' already registered\n",
-                                filename, line_num, s->filename);
-                        errors++;
+                        ERROR("Feed '%s' already registered\n", s->filename);
                     }
                 }
 
@@ -4154,16 +4225,12 @@ static int parse_ffconfig(const char *filename)
                 }
                 feed->feed_max_size = (int64_t)fsize;
                 if (feed->feed_max_size < FFM_PACKET_SIZE*4) {
-                    fprintf(stderr, "%s:%d: Feed max file size is too small, "
-                            "must be at least %d\n", filename, line_num, FFM_PACKET_SIZE*4);
-                    errors++;
+                    ERROR("Feed max file size is too small, must be at least %d\n", FFM_PACKET_SIZE*4);
                 }
             }
         } else if (!strcasecmp(cmd, "</Feed>")) {
             if (!feed) {
-                fprintf(stderr, "%s:%d: No corresponding <Feed> for </Feed>\n",
-                        filename, line_num);
-                errors++;
+                ERROR("No corresponding <Feed> for </Feed>\n");
             }
             feed = NULL;
         } else if (!strcasecmp(cmd, "<Stream")) {
@@ -4171,8 +4238,7 @@ static int parse_ffconfig(const char *filename)
             /* Stream related options */
             char *q;
             if (stream || feed) {
-                fprintf(stderr, "%s:%d: Already in a tag\n",
-                        filename, line_num);
+                ERROR("Already in a tag\n");
             } else {
                 FFStream *s;
                 stream = av_mallocz(sizeof(FFStream));
@@ -4183,9 +4249,7 @@ static int parse_ffconfig(const char *filename)
 
                 for (s = first_stream; s; s = s->next) {
                     if (!strcmp(stream->filename, s->filename)) {
-                        fprintf(stderr, "%s:%d: Stream '%s' already registered\n",
-                                filename, line_num, s->filename);
-                        errors++;
+                        ERROR("Stream '%s' already registered\n", s->filename);
                     }
                 }
 
@@ -4214,8 +4278,7 @@ static int parse_ffconfig(const char *filename)
                     sfeed = sfeed->next_feed;
                 }
                 if (!sfeed)
-                    fprintf(stderr, "%s:%d: feed '%s' not defined\n",
-                            filename, line_num, arg);
+                    ERROR("feed '%s' not defined\n", arg);
                 else
                     stream->feed = sfeed;
             }
@@ -4232,9 +4295,7 @@ static int parse_ffconfig(const char *filename)
                         strcpy(arg, "mjpeg");
                     stream->fmt = ffserver_guess_format(arg, NULL, NULL);
                     if (!stream->fmt) {
-                        fprintf(stderr, "%s:%d: Unknown Format: %s\n",
-                                filename, line_num, arg);
-                        errors++;
+                        ERROR("Unknown Format: %s\n", arg);
                     }
                 }
                 if (stream->fmt) {
@@ -4247,17 +4308,14 @@ static int parse_ffconfig(const char *filename)
             if (stream) {
                 stream->ifmt = av_find_input_format(arg);
                 if (!stream->ifmt) {
-                    fprintf(stderr, "%s:%d: Unknown input format: %s\n",
-                            filename, line_num, arg);
+                    ERROR("Unknown input format: %s\n", arg);
                 }
             }
         } else if (!strcasecmp(cmd, "FaviconURL")) {
             if (stream && stream->stream_type == STREAM_TYPE_STATUS) {
                 get_arg(stream->feed_filename, sizeof(stream->feed_filename), &p);
             } else {
-                fprintf(stderr, "%s:%d: FaviconURL only permitted for status streams\n",
-                            filename, line_num);
-                errors++;
+                ERROR("FaviconURL only permitted for status streams\n");
             }
         } else if (!strcasecmp(cmd, "Author")) {
             if (stream)
@@ -4282,17 +4340,13 @@ static int parse_ffconfig(const char *filename)
             get_arg(arg, sizeof(arg), &p);
             audio_id = opt_audio_codec(arg);
             if (audio_id == CODEC_ID_NONE) {
-                fprintf(stderr, "%s:%d: Unknown AudioCodec: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("Unknown AudioCodec: %s\n", arg);
             }
         } else if (!strcasecmp(cmd, "VideoCodec")) {
             get_arg(arg, sizeof(arg), &p);
             video_id = opt_video_codec(arg);
             if (video_id == CODEC_ID_NONE) {
-                fprintf(stderr, "%s:%d: Unknown VideoCodec: %s\n",
-                        filename, line_num, arg);
-                errors++;
+                ERROR("Unknown VideoCodec: %s\n", arg);
             }
         } else if (!strcasecmp(cmd, "MaxTime")) {
             get_arg(arg, sizeof(arg), &p);
@@ -4301,7 +4355,7 @@ static int parse_ffconfig(const char *filename)
         } else if (!strcasecmp(cmd, "AudioBitRate")) {
             get_arg(arg, sizeof(arg), &p);
             if (stream)
-                audio_enc.bit_rate = atoi(arg) * 1000;
+                audio_enc.bit_rate = lrintf(atof(arg) * 1000);
         } else if (!strcasecmp(cmd, "AudioChannels")) {
             get_arg(arg, sizeof(arg), &p);
             if (stream)
@@ -4325,9 +4379,7 @@ static int parse_ffconfig(const char *filename)
                     video_enc.rc_min_rate = minrate * 1000;
                     video_enc.rc_max_rate = maxrate * 1000;
                 } else {
-                    fprintf(stderr, "%s:%d: Incorrect format for VideoBitRateRange -- should be <min>-<max>: %s\n",
-                            filename, line_num, arg);
-                    errors++;
+                    ERROR("Incorrect format for VideoBitRateRange -- should be <min>-<max>: %s\n", arg);
                 }
             }
         } else if (!strcasecmp(cmd, "Debug")) {
@@ -4361,9 +4413,7 @@ static int parse_ffconfig(const char *filename)
                 av_parse_video_frame_size(&video_enc.width, &video_enc.height, arg);
                 if ((video_enc.width % 16) != 0 ||
                     (video_enc.height % 16) != 0) {
-                    fprintf(stderr, "%s:%d: Image size must be a multiple of 16\n",
-                            filename, line_num);
-                    errors++;
+                    ERROR("Image size must be a multiple of 16\n");
                 }
             }
         } else if (!strcasecmp(cmd, "VideoFrameRate")) {
@@ -4371,8 +4421,7 @@ static int parse_ffconfig(const char *filename)
             if (stream) {
                 AVRational frame_rate;
                 if (av_parse_video_frame_rate(&frame_rate, arg) < 0) {
-                    fprintf(stderr, "Incorrect frame rate\n");
-                    errors++;
+                    ERROR("Incorrect frame rate: %s\n", arg);
                 } else {
                     video_enc.time_base.num = frame_rate.den;
                     video_enc.time_base.den = frame_rate.num;
@@ -4408,8 +4457,24 @@ static int parse_ffconfig(const char *filename)
                 type = AV_OPT_FLAG_AUDIO_PARAM;
             }
             if (ffserver_opt_default(arg, arg2, avctx, type|AV_OPT_FLAG_ENCODING_PARAM)) {
-                fprintf(stderr, "AVOption error: %s %s\n", arg, arg2);
-                errors++;
+                ERROR("AVOption error: %s %s\n", arg, arg2);
+            }
+        } else if (!strcasecmp(cmd, "AVPresetVideo") ||
+                   !strcasecmp(cmd, "AVPresetAudio")) {
+            AVCodecContext *avctx;
+            int type;
+            get_arg(arg, sizeof(arg), &p);
+            if (!strcasecmp(cmd, "AVPresetVideo")) {
+                avctx = &video_enc;
+                video_enc.codec_id = video_id;
+                type = AV_OPT_FLAG_VIDEO_PARAM;
+            } else {
+                avctx = &audio_enc;
+                audio_enc.codec_id = audio_id;
+                type = AV_OPT_FLAG_AUDIO_PARAM;
+            }
+            if (ffserver_opt_preset(arg, avctx, type|AV_OPT_FLAG_ENCODING_PARAM, &audio_id, &video_id)) {
+                ERROR("AVPreset error: %s\n", arg);
             }
         } else if (!strcasecmp(cmd, "VideoTag")) {
             get_arg(arg, sizeof(arg), &p);
@@ -4435,9 +4500,7 @@ static int parse_ffconfig(const char *filename)
             if (stream) {
                 video_enc.max_qdiff = atoi(arg);
                 if (video_enc.max_qdiff < 1 || video_enc.max_qdiff > 31) {
-                    fprintf(stderr, "%s:%d: VideoQDiff out of range\n",
-                            filename, line_num);
-                    errors++;
+                    ERROR("VideoQDiff out of range\n");
                 }
             }
         } else if (!strcasecmp(cmd, "VideoQMax")) {
@@ -4445,9 +4508,7 @@ static int parse_ffconfig(const char *filename)
             if (stream) {
                 video_enc.qmax = atoi(arg);
                 if (video_enc.qmax < 1 || video_enc.qmax > 31) {
-                    fprintf(stderr, "%s:%d: VideoQMax out of range\n",
-                            filename, line_num);
-                    errors++;
+                    ERROR("VideoQMax out of range\n");
                 }
             }
         } else if (!strcasecmp(cmd, "VideoQMin")) {
@@ -4455,9 +4516,7 @@ static int parse_ffconfig(const char *filename)
             if (stream) {
                 video_enc.qmin = atoi(arg);
                 if (video_enc.qmin < 1 || video_enc.qmin > 31) {
-                    fprintf(stderr, "%s:%d: VideoQMin out of range\n",
-                            filename, line_num);
-                    errors++;
+                    ERROR("VideoQMin out of range\n");
                 }
             }
         } else if (!strcasecmp(cmd, "LumaElim")) {
@@ -4496,9 +4555,7 @@ static int parse_ffconfig(const char *filename)
             get_arg(arg, sizeof(arg), &p);
             if (stream) {
                 if (resolve_host(&stream->multicast_ip, arg) != 0) {
-                    fprintf(stderr, "%s:%d: Invalid host/IP address: %s\n",
-                            filename, line_num, arg);
-                    errors++;
+                    ERROR("Invalid host/IP address: %s\n", arg);
                 }
                 stream->is_multicast = 1;
                 stream->loop = 1; /* default is looping */
@@ -4516,9 +4573,7 @@ static int parse_ffconfig(const char *filename)
                 stream->loop = 0;
         } else if (!strcasecmp(cmd, "</Stream>")) {
             if (!stream) {
-                fprintf(stderr, "%s:%d: No corresponding <Stream> for </Stream>\n",
-                        filename, line_num);
-                errors++;
+                ERROR("No corresponding <Stream> for </Stream>\n");
             } else {
                 if (stream->feed && stream->fmt && strcmp(stream->fmt->name, "ffm") != 0) {
                     if (audio_id != CODEC_ID_NONE) {
@@ -4538,9 +4593,7 @@ static int parse_ffconfig(const char *filename)
             /*********************************************/
             char *q;
             if (stream || feed || redirect) {
-                fprintf(stderr, "%s:%d: Already in a tag\n",
-                        filename, line_num);
-                errors++;
+                ERROR("Already in a tag\n");
             } else {
                 redirect = av_mallocz(sizeof(FFStream));
                 *last_stream = redirect;
@@ -4557,14 +4610,10 @@ static int parse_ffconfig(const char *filename)
                 get_arg(redirect->feed_filename, sizeof(redirect->feed_filename), &p);
         } else if (!strcasecmp(cmd, "</Redirect>")) {
             if (!redirect) {
-                fprintf(stderr, "%s:%d: No corresponding <Redirect> for </Redirect>\n",
-                        filename, line_num);
-                errors++;
+                ERROR("No corresponding <Redirect> for </Redirect>\n");
             } else {
                 if (!redirect->feed_filename[0]) {
-                    fprintf(stderr, "%s:%d: No URL found for <Redirect>\n",
-                            filename, line_num);
-                    errors++;
+                    ERROR("No URL found for <Redirect>\n");
                 }
                 redirect = NULL;
             }
@@ -4573,15 +4622,13 @@ static int parse_ffconfig(const char *filename)
 #if HAVE_DLOPEN
             load_module(arg);
 #else
-            fprintf(stderr, "%s:%d: Module support not compiled into this version: '%s'\n",
-                    filename, line_num, arg);
-            errors++;
+            ERROR("Module support not compiled into this version: '%s'\n", arg);
 #endif
         } else {
-            fprintf(stderr, "%s:%d: Incorrect keyword: '%s'\n",
-                    filename, line_num, cmd);
+            ERROR("Incorrect keyword: '%s'\n", cmd);
         }
     }
+#undef ERROR
 
     fclose(f);
     if (errors)
@@ -4646,8 +4693,6 @@ int main(int argc, char **argv)
 
     show_banner();
 
-    config_filename = "/etc/ffserver.conf";
-
     my_program_name = argv[0];
     my_program_dir = getcwd(0, 0);
     ffserver_daemon = 1;
@@ -4656,7 +4701,7 @@ int main(int argc, char **argv)
 
     unsetenv("http_proxy");             /* Kill the http_proxy */
 
-    av_lfg_init(&random_state, ff_random_get_seed());
+    av_lfg_init(&random_state, av_get_random_seed());
 
     memset(&sigact, 0, sizeof(sigact));
     sigact.sa_handler = handle_child_exit;

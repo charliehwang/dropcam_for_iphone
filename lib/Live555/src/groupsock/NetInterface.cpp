@@ -24,6 +24,7 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #ifndef NO_SSTREAM
 #include <sstream>
 #endif
+#include <stdio.h>
 
 ////////// NetInterface //////////
 
@@ -84,9 +85,9 @@ DirectedNetInterface* DirectedNetInterfaceSet::Iterator::next() {
 
 int Socket::DebugLevel = 1; // default value
 
-Socket::Socket(UsageEnvironment& env, Port port, Boolean setLoopback)
-  : fEnv(DefaultUsageEnvironment != NULL ? *DefaultUsageEnvironment : env), fPort(port), fSetLoopback(setLoopback) {
-  fSocketNum = setupDatagramSocket(fEnv, port, setLoopback);
+Socket::Socket(UsageEnvironment& env, Port port)
+  : fEnv(DefaultUsageEnvironment != NULL ? *DefaultUsageEnvironment : env), fPort(port) {
+  fSocketNum = setupDatagramSocket(fEnv, port);
 }
 
 Socket::~Socket() {
@@ -94,9 +95,18 @@ Socket::~Socket() {
 }
 
 Boolean Socket::changePort(Port newPort) {
+  int oldSocketNum = fSocketNum;
   closeSocket(fSocketNum);
-  fSocketNum = setupDatagramSocket(fEnv, newPort, fSetLoopback);
-  return fSocketNum >= 0;
+  fSocketNum = setupDatagramSocket(fEnv, newPort);
+  if (fSocketNum < 0) {
+    fEnv.taskScheduler().turnOffBackgroundReadHandling(oldSocketNum);
+    return False;
+  }
+
+  if (fSocketNum != oldSocketNum) { // the socket number has changed, so move any event handling for it:
+    fEnv.taskScheduler().moveSocketHandling(oldSocketNum, fSocketNum);
+  }
+  return True;
 }
 
 UsageEnvironment& operator<<(UsageEnvironment& s, const Socket& sock) {

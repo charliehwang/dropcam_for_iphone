@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHCircularBufferDeque.h
  
- Copyright (c) 2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2009-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -11,6 +11,14 @@
 #import "CHCircularBufferDeque.h"
 
 @implementation CHCircularBufferDeque
+
+- (void) prependObject:(id)anObject {
+	[self insertObject:anObject atIndex:0];
+}
+
+- (void) appendObject:(id)anObject {
+	[self insertObject:anObject atIndex:count];	
+}
 
 - (BOOL) isEqual:(id)otherObject {
 	if ([otherObject conformsToProtocol:@protocol(CHDeque)])

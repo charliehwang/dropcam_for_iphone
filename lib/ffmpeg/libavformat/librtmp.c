@@ -20,7 +20,7 @@
  */
 
 /**
- * @file libavformat/librtmp.c
+ * @file
  * RTMP protocol based on http://rtmpdump.mplayerhq.hu/ librtmp
  */
 
@@ -55,7 +55,7 @@ static int rtmp_close(URLContext *s)
 }
 
 /**
- * Opens RTMP connection and verifies that the stream can be played.
+ * Open RTMP connection and verify that the stream can be played.
  *
  * URL syntax: rtmp://server[:port][/app][/playpath][ keyword=value]...
  *             where 'app' is first one or two directories in the path
@@ -94,7 +94,7 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
     }
 
     if (flags & URL_WRONLY)
-        r->Link.protocol |= RTMP_FEATURE_WRITE;
+        RTMP_EnableWrite(r);
 
     if (!RTMP_Connect(r, NULL) || !RTMP_ConnectStream(r, 0)) {
         rc = -1;
@@ -109,7 +109,7 @@ fail:
     return rc;
 }
 
-static int rtmp_write(URLContext *s, uint8_t *buf, int size)
+static int rtmp_write(URLContext *s, const uint8_t *buf, int size)
 {
     RTMP *r = s->priv_data;
 
@@ -127,10 +127,7 @@ static int rtmp_read_pause(URLContext *s, int pause)
 {
     RTMP *r = s->priv_data;
 
-    if (pause)
-        r->m_pauseStamp =
-            r->m_channelTimestamp[r->m_mediaChannel];
-    if (!RTMP_SendPause(r, pause, r->m_pauseStamp))
+    if (!RTMP_Pause(r, pause))
         return -1;
     return 0;
 }
@@ -141,10 +138,13 @@ static int64_t rtmp_read_seek(URLContext *s, int stream_index,
     RTMP *r = s->priv_data;
 
     if (flags & AVSEEK_FLAG_BYTE)
-        return AVERROR_NOTSUPP;
+        return AVERROR(ENOSYS);
 
     /* seeks are in milliseconds */
-    timestamp = av_rescale(timestamp, AV_TIME_BASE, 1000);
+    if (stream_index < 0)
+        timestamp = av_rescale_rnd(timestamp, 1000, AV_TIME_BASE,
+            flags & AVSEEK_FLAG_BACKWARD ? AV_ROUND_DOWN : AV_ROUND_UP);
+
     if (!RTMP_SendSeek(r, timestamp))
         return -1;
     return timestamp;
@@ -154,7 +154,7 @@ static int rtmp_get_file_handle(URLContext *s)
 {
     RTMP *r = s->priv_data;
 
-    return r->m_sb.sb_socket;
+    return RTMP_Socket(r);
 }
 
 URLProtocol rtmp_protocol = {

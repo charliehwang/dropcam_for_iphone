@@ -7,27 +7,39 @@
 
 #import <Foundation/Foundation.h>
 
-@protocol RTSPSubsessionDelegate
-- (void)didReceiveFrame:(NSData*)frameData presentationTime:(NSDate*)presentationTime;
-@end
+@protocol RTSPSubsessionDelegate;
 
 @interface RTSPSubsession : NSObject {
 	struct RTSPSubsessionContext *context;
 	id <RTSPSubsessionDelegate> delegate;
 }
 
+- (NSString*)getSessionId;
 - (NSString*)getMediumName;
 - (NSString*)getProtocolName;
 - (NSString*)getCodecName;
 - (NSUInteger)getServerPortNum;
 - (NSString*)getSDP_spropparametersets;
+- (NSString*)getSDP_config;
+- (NSString*)getSDP_mode;
 - (NSUInteger)getSDP_VideoWidth;
 - (NSUInteger)getSDP_VideoHeight;
+- (NSUInteger)getClientPortNum;
+- (int)getSocket;
 - (void)increaseReceiveBufferTo:(NSUInteger)size;
 - (void)setPacketReorderingThresholdTime:(NSUInteger)uSeconds;
+- (BOOL)timeIsSynchronized;
 
 @property (assign) id <RTSPSubsessionDelegate> delegate;
 
+@end
+
+@protocol RTSPSubsessionDelegate
+- (void)didReceiveFrame:(const uint8_t*)frameData
+		frameDataLength:(int)frameDataLength
+	   presentationTime:(struct timeval)presentationTime
+ durationInMicroseconds:(unsigned)duration
+			 subsession:(RTSPSubsession*)subsession;
 @end
 
 @interface RTSPClientSession : NSObject {
@@ -43,12 +55,13 @@
 - (id)initWithURL:(NSURL*)url username:(NSString*)username password:(NSString*)password;
 - (BOOL)setup;
 - (NSArray*)getSubsessions;
-- (BOOL)setupSubsession:(RTSPSubsession*)subsession clientPortNum:(NSUInteger)portNum;
+- (BOOL)setupSubsession:(RTSPSubsession*)subsession useTCP:(BOOL)useTCP;
 - (BOOL)play;
 - (BOOL)teardown;
 - (BOOL)runEventLoop:(char*)cancelSession;
 - (NSString*)getLastErrorString;
 - (NSString*)getSDP;
+- (int)getSocket;
 
 @end
 

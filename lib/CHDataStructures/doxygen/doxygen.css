@@ -260,6 +260,10 @@ hr {
 	color: #606060;
 }
 
+div.groupText {
+	display: none;
+}
+
 /* @end */
 
 /* @group Member Details */
@@ -284,6 +288,7 @@ hr {
 
 .memitem {
 	padding: 0;
+	margin: 6px 0;
 }
 
 .memname, .memname a.elRef {

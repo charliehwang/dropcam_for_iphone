@@ -17,7 +17,7 @@
  */
 
 /**
- * @file libavutil/error.h
+ * @file
  * error code definitions
  */
 
@@ -43,12 +43,12 @@
 #define AVERROR_NOENT       AVERROR(ENOENT)  ///< No such file or directory
 #define AVERROR_NOFMT       AVERROR(EILSEQ)  ///< Unknown format
 #define AVERROR_NOMEM       AVERROR(ENOMEM)  ///< Not enough memory
+#define AVERROR_NOTSUPP     AVERROR(ENOSYS)  ///< Operation not supported
 #define AVERROR_NUMEXPECTED AVERROR(EDOM)    ///< Number syntax expected in filename
 #define AVERROR_UNKNOWN     AVERROR(EINVAL)  ///< Unknown error
 #endif
 
 #define AVERROR_EOF         AVERROR(EPIPE)   ///< End of file
-#define AVERROR_NOTSUPP     AVERROR(ENOSYS)  ///< Operation not supported
 
 #define AVERROR_PATCHWELCOME    (-MKTAG('P','A','W','E')) ///< Not yet implemented in FFmpeg, patches welcome
 
@@ -58,12 +58,16 @@
 #endif
 
 /**
- * Puts a description of the AVERROR code errnum in errbuf.
+ * Put a description of the AVERROR code errnum in errbuf.
  * In case of failure the global variable errno is set to indicate the
- * error.
+ * error. Even in case of failure av_strerror() will print a generic
+ * error message indicating the errnum provided to errbuf.
  *
+ * @param errnum      error code to describe
+ * @param errbuf      buffer to which description is written
  * @param errbuf_size the size in bytes of errbuf
- * @return 0 on success, a negative value otherwise
+ * @return 0 on success, a negative value if a description for errnum
+ * cannot be found
  */
 int av_strerror(int errnum, char *errbuf, size_t errbuf_size);
 

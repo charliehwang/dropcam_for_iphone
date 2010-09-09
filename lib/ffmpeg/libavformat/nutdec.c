@@ -95,7 +95,7 @@ static int get_packetheader(NUTContext *nut, ByteIOContext *bc, int calculate_ch
 //    start= url_ftell(bc) - 8;
 
     startcode= be2me_64(startcode);
-    startcode= ff_crc04C11DB7_update(0, &startcode, 8);
+    startcode= ff_crc04C11DB7_update(0, (uint8_t*)&startcode, 8);
 
     init_checksum(bc, ff_crc04C11DB7_update, startcode);
     size= ff_get_v(bc);
@@ -316,7 +316,9 @@ static int decode_stream_header(NUTContext *nut){
     {
         case 0:
             st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
-            st->codec->codec_id = ff_codec_get_id(ff_codec_bmp_tags, tmp);
+            st->codec->codec_id = av_codec_get_id(
+                (const AVCodecTag * const []) { ff_codec_bmp_tags, ff_nut_video_tags, 0 },
+                tmp);
             break;
         case 1:
             st->codec->codec_type = AVMEDIA_TYPE_AUDIO;
@@ -334,7 +336,8 @@ static int decode_stream_header(NUTContext *nut){
             return -1;
     }
     if(class<3 && st->codec->codec_id == CODEC_ID_NONE)
-        av_log(s, AV_LOG_ERROR, "Unknown codec?!\n");
+        av_log(s, AV_LOG_ERROR, "Unknown codec tag '0x%04x' for stream number %d\n",
+               (unsigned int)tmp, stream_id);
 
     GET_V(stc->time_base_id    , tmp < nut->time_base_count);
     GET_V(stc->msb_pts_shift   , tmp < 16);
@@ -452,7 +455,7 @@ static int decode_info_header(NUTContext *nut){
             else                      metadata= &s->metadata;
             if(metadata && strcasecmp(name,"Uses")
                && strcasecmp(name,"Depends") && strcasecmp(name,"Replaces"))
-                av_metadata_set(metadata, name, str_value);
+                av_metadata_set2(metadata, name, str_value, 0);
         }
     }
 
@@ -923,5 +926,6 @@ AVInputFormat nut_demuxer = {
     read_seek,
     .extensions = "nut",
     .metadata_conv = ff_nut_metadata_conv,
+    .codec_tag = (const AVCodecTag * const []) { ff_codec_bmp_tags, ff_nut_video_tags, ff_codec_wav_tags, ff_nut_subtitle_tags, 0 },
 };
 #endif

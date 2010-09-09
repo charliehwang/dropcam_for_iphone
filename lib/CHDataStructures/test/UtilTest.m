@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- UtilTest.m
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -30,34 +30,31 @@
 }
 
 - (void) testCollectionsAreEqual {
-	NSArray *array = [NSArray arrayWithObjects:@"A", @"B", @"C", nil];
+	NSArray *array = [NSArray arrayWithObjects:@"A",@"B",@"C",nil];
 	NSDictionary *dict = [NSDictionary dictionaryWithObjects:array forKeys:array];
-	NSSet *set = [NSSet setWithObjects:@"A", @"B", @"C", nil];
+	NSSet *set = [NSSet setWithObjects:@"A",@"B",@"C",nil];
 	
-	STAssertTrue(collectionsAreEqual(nil, nil),     @"Should be equal.");
+	STAssertTrue(collectionsAreEqual(nil, nil), nil);
 	
-	STAssertTrue(collectionsAreEqual(array, array), @"Should be equal.");
-	STAssertTrue(collectionsAreEqual(dict, dict),   @"Should be equal.");
-	STAssertTrue(collectionsAreEqual(set, set),     @"Should be equal.");
+	STAssertTrue(collectionsAreEqual(array, array), nil);
+	STAssertTrue(collectionsAreEqual(dict, dict), nil);
+	STAssertTrue(collectionsAreEqual(set, set), nil);
 
-	STAssertTrue(collectionsAreEqual(array, [array copy]), @"Should be equal.");
-	STAssertTrue(collectionsAreEqual(dict,  [dict copy]),  @"Should be equal.");
-	STAssertTrue(collectionsAreEqual(set,   [set copy]),   @"Should be equal.");
+	STAssertTrue(collectionsAreEqual(array, [array copy]), nil);
+	STAssertTrue(collectionsAreEqual(dict, [dict copy]), nil);
+	STAssertTrue(collectionsAreEqual(set, [set copy]), nil);
 	
-	STAssertFalse(collectionsAreEqual(array, nil),  @"Should not be equal.");
-	STAssertFalse(collectionsAreEqual(dict,  nil),  @"Should not be equal.");
-	STAssertFalse(collectionsAreEqual(set,   nil),  @"Should not be equal.");
+	STAssertFalse(collectionsAreEqual(array, nil), nil);
+	STAssertFalse(collectionsAreEqual(dict, nil), nil);
+	STAssertFalse(collectionsAreEqual(set, nil), nil);
 
 	id obj = [NSString string];
 	STAssertThrowsSpecificNamed(collectionsAreEqual(array, obj),
-	                            NSException, NSInvalidArgumentException,
-	                            @"Should raise NSInvalidArgumentException");
+	                            NSException, NSInvalidArgumentException, nil);
 	STAssertThrowsSpecificNamed(collectionsAreEqual(dict, obj),
-	                            NSException, NSInvalidArgumentException,
-	                            @"Should raise NSInvalidArgumentException");
+	                            NSException, NSInvalidArgumentException, nil);
 	STAssertThrowsSpecificNamed(collectionsAreEqual(set, obj),
-	                            NSException, NSInvalidArgumentException,
-	                            @"Should raise NSInvalidArgumentException");
+	                            NSException, NSInvalidArgumentException, nil);
 }
 
 - (void) testIndexOutOfRangeException {
@@ -66,12 +63,11 @@
 	}
 	@catch (NSException * e) {
 		raisedException = YES;
-		STAssertEqualObjects([e name], NSRangeException,
-							 @"Incorrect exception name.");
-		[reason appendString:@"Index (4) out of range (0-3)."];
-		STAssertEqualObjects([e reason], reason, @"Incorrect exception reason.");
+		STAssertEqualObjects([e name], NSRangeException, nil);
+		[reason appendString:@"Index (4) beyond bounds for count (4)"];
+		STAssertEqualObjects([e reason], reason,  nil);
 	}
-	STAssertTrue(raisedException, @"Should have raised an exception.");
+	STAssertTrue(raisedException, nil);
 }
 
 - (void) testInvalidArgumentException {
@@ -80,12 +76,11 @@
 	}
 	@catch (NSException * e) {
 		raisedException = YES;
-		STAssertEqualObjects([e name], NSInvalidArgumentException,
-							 @"Incorrect exception name.");
+		STAssertEqualObjects([e name], NSInvalidArgumentException, nil);
 		[reason appendString:@"Some silly reason."];
-		STAssertEqualObjects([e reason], reason, @"Incorrect exception reason.");
+		STAssertEqualObjects([e reason], reason, nil);
 	}
-	STAssertTrue(raisedException, @"Should have raised an exception.");
+	STAssertTrue(raisedException, nil);
 }
 
 - (void) testNilArgumentException {
@@ -94,12 +89,11 @@
 	}
 	@catch (NSException * e) {
 		raisedException = YES;
-		STAssertEqualObjects([e name], NSInvalidArgumentException,
-							 @"Incorrect exception name.");
-		[reason appendString:@"Invalid nil argument."];
-		STAssertEqualObjects([e reason], reason, @"Incorrect exception reason.");
+		STAssertEqualObjects([e name], NSInvalidArgumentException, nil);
+		[reason appendString:@"Invalid nil argument"];
+		STAssertEqualObjects([e reason], reason, nil);
 	}
-	STAssertTrue(raisedException, @"Should have raised an exception.");
+	STAssertTrue(raisedException, nil);
 }
 
 - (void) testMutatedCollectionException {
@@ -108,12 +102,11 @@
 	}
 	@catch (NSException * e) {
 		raisedException = YES;
-		STAssertEqualObjects([e name], NSGenericException,
-							 @"Incorrect exception name.");
-		[reason appendString:@"Collection was mutated during enumeration."];
-		STAssertEqualObjects([e reason], reason, @"Incorrect exception reason.");
+		STAssertEqualObjects([e name], NSGenericException, nil);
+		[reason appendString:@"Collection was mutated during enumeration"];
+		STAssertEqualObjects([e reason], reason, nil);
 	}
-	STAssertTrue(raisedException, @"Should have raised an exception.");
+	STAssertTrue(raisedException, nil);
 }
 
 - (void) testUnsupportedOperationException {
@@ -122,12 +115,11 @@
 	}
 	@catch (NSException * e) {
 		raisedException = YES;
-		STAssertEqualObjects([e name], NSInternalInconsistencyException,
-							 @"Incorrect exception name.");
-		[reason appendString:@"Unsupported operation."];
-		STAssertEqualObjects([e reason], reason, @"Incorrect exception reason.");
+		STAssertEqualObjects([e name], NSInternalInconsistencyException, nil);
+		[reason appendString:@"Unsupported operation"];
+		STAssertEqualObjects([e reason], reason, nil);
 	}
-	STAssertTrue(raisedException, @"Should have raised an exception.");
+	STAssertTrue(raisedException, nil);
 }
 
 - (void) testCHQuietLog {

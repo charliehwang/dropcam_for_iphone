@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHStackTest.m
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -11,7 +11,6 @@
 #import <SenTestingKit/SenTestingKit.h>
 #import "CHStack.h"
 #import "CHListStack.h"
-#import "CHMutableArrayStack.h"
 #import "CHCircularBufferStack.h"
 
 @interface CHStackTest : SenTestCase {
@@ -27,10 +26,9 @@
 - (void) setUp {
 	stackClasses = [NSArray arrayWithObjects:
 					[CHListStack class],
-					[CHMutableArrayStack class],
 					[CHCircularBufferStack class],
 					nil];
-	objects = [NSArray arrayWithObjects:@"A", @"B", @"C", nil];
+	objects = [NSArray arrayWithObjects:@"A",@"B",@"C",nil];
 	stackOrder = [NSArray arrayWithObjects:@"C", @"B", @"A", nil];
 }
 
@@ -54,13 +52,18 @@
 	NSEnumerator *classes = [stackClasses objectEnumerator];
 	Class aClass;
 	while (aClass = [classes nextObject]) {
+		// Test initializing with nil and empty array parameters
+		stack = [[[aClass alloc] initWithArray:nil] autorelease];
+		STAssertEquals([stack count], (NSUInteger)0, nil);
+		stack = [[[aClass alloc] initWithArray:[NSArray array]] autorelease];
+		STAssertEquals([stack count], (NSUInteger)0, nil);
+		// Test initializing with a valid, non-empty array
 		stack = [[[aClass alloc] initWithArray:objects] autorelease];
-		STAssertEquals([stack count], [objects count], @"Incorrect count.");
-		STAssertEqualObjects([stack allObjects], stackOrder,
-							 @"Bad ordering on -[%@ initWithArray:]", aClass);
-
+		STAssertEquals([stack count], [objects count], nil);
+		STAssertEqualObjects([stack allObjects], stackOrder, nil);
+		// Test initializing with an array larger than the default capacity
 		stack = [[[aClass alloc] initWithArray:moreObjects] autorelease];
-		STAssertEquals([stack count], [moreObjects count], @"Incorrect count.");
+		STAssertEquals([stack count], [moreObjects count], nil);
 	}
 }
 
@@ -83,17 +86,16 @@
 	for (NSUInteger i = 0; i < [stackClasses count]; i++) {
 		stack1 = [equalStacks objectAtIndex:i];
 		STAssertThrowsSpecificNamed([stack1 isEqualToStack:[NSString string]],
-		                            NSException, NSInvalidArgumentException,
-		                            @"Should raise NSInvalidArgumentException");
-		STAssertFalse([stack1 isEqual:[NSString string]], @"Should not be equal.");
-		STAssertTrue([stack1 isEqual:stack1], @"Should be equal to itself.");
+		                            NSException, NSInvalidArgumentException, nil);
+		STAssertFalse([stack1 isEqual:[NSString string]], nil);
+		STAssertEqualObjects(stack1, stack1, nil);
 		stack2 = [equalStacks objectAtIndex:i+1];
-		STAssertTrue([stack1 isEqual:stack2], @"Should be equal.");
-		STAssertEquals([stack1 hash], [stack2 hash], @"Hashes should match.");
+		STAssertEqualObjects(stack1, stack2, nil);
+		STAssertEquals([stack1 hash], [stack2 hash], nil);
 		stack2 = [emptyStacks objectAtIndex:i];
-		STAssertFalse([stack1 isEqual:stack2], @"Should not be equal.");
+		STAssertFalse([stack1 isEqual:stack2], nil);
 		stack2 = [reversedStacks objectAtIndex:i];
-		STAssertFalse([stack1 isEqual:stack2], @"Should not be equal.");
+		STAssertFalse([stack1 isEqual:stack2], nil);
 	}
 }
 
@@ -102,14 +104,13 @@
 	Class aClass;
 	while (aClass = [classes nextObject]) {
 		stack = [[[aClass alloc] init] autorelease];
-		STAssertThrows([stack pushObject:nil],
-					   @"Should raise nilArgumentException.");
+		STAssertThrows([stack pushObject:nil], nil);
 		
-		STAssertEquals([stack count], (NSUInteger)0, @"Incorrect count.");
+		STAssertEquals([stack count], (NSUInteger)0, nil);
 		e = [objects objectEnumerator];
 		while (anObject = [e nextObject])
 			[stack pushObject:anObject];
-		STAssertEquals([stack count], [objects count], @"Incorrect count.");
+		STAssertEquals([stack count], [objects count], nil);
 	}
 }
 
@@ -118,134 +119,34 @@
 	Class aClass;
 	while (aClass = [classes nextObject]) {
 		stack = [[[aClass alloc] init] autorelease];
+		// Test that the top object starts out as nil
+		STAssertNil([stack topObject], nil);
+		// Test that the top object is correct as objects are pushed
 		e = [objects objectEnumerator];
 		while (anObject = [e nextObject]) {
 			[stack pushObject:anObject];
-			STAssertEqualObjects([stack topObject], anObject, @"-topObject is wrong.");
+			STAssertEqualObjects([stack topObject], anObject, nil);
 		}
+		// Test that objects are popped in the correct order and count is right.
 		NSUInteger expected = [objects count];
-		STAssertEquals([stack count], expected, @"Incorrect count.");
-		STAssertEqualObjects([stack topObject], @"C", @"-topObject is wrong.");
-		STAssertEquals([stack count], expected, @"Incorrect count.");
+		STAssertEqualObjects([stack topObject], @"C", nil);
+		STAssertEquals([stack count], expected, nil);
 		[stack popObject];
 		--expected;
-		STAssertEquals([stack count], expected, @"Incorrect count.");
-		STAssertEqualObjects([stack topObject], @"B", @"-topObject is wrong.");
-		STAssertEquals([stack count], expected, @"Incorrect count.");
+		STAssertEqualObjects([stack topObject], @"B", nil);
+		STAssertEquals([stack count], expected, nil);
 		[stack popObject];
 		--expected;
-		STAssertEquals([stack count], expected, @"Incorrect count.");
-		STAssertEqualObjects([stack topObject], @"A", @"-topObject is wrong.");
-		STAssertEquals([stack count], expected, @"Incorrect count.");
+		STAssertEqualObjects([stack topObject], @"A", nil);
+		STAssertEquals([stack count], expected, nil);
 		[stack popObject];
 		--expected;
-		STAssertEquals([stack count], expected, @"Incorrect count.");
-		STAssertNil([stack topObject], @"-topObject should return nil.");
-		STAssertEquals([stack count], expected, @"Incorrect count.");
+		STAssertNil([stack topObject], nil);
+		STAssertEquals([stack count], expected, nil);
+		// Test that popping an empty stack has no effect
 		[stack popObject];
-		STAssertEquals([stack count], expected, @"Incorrect count.");
+		STAssertEquals([stack count], expected, nil);
 	}
 }
-
-@end
-
-#pragma mark -
-
-@interface CHMutableArrayStackTest : SenTestCase {
-	CHMutableArrayStack *stack;
-	NSArray *objects, *stackOrder;
-	NSEnumerator *e;
-	id anObject;
-}
-@end
-
-@implementation CHMutableArrayStackTest
-
-- (void) setUp {
-	stack = [[CHMutableArrayStack alloc] init];
-	objects = [NSArray arrayWithObjects:@"A", @"B", @"C", nil];
-	stackOrder = [NSArray arrayWithObjects:@"C", @"B", @"A", nil];
-}
-
-- (void) tearDown {
-	[stack release];
-}
-
-/*
- NOTE: These methods are tested because they're different only for this subclass
- */
-
-- (void) testAllObjects {
-	e = [objects objectEnumerator];
-	while (anObject = [e nextObject])
-		[stack pushObject:anObject];
-	
-	NSArray *allObjects = [stack allObjects];
-	STAssertEquals([allObjects count], [objects count], @"Incorrect count.");
-	STAssertEqualObjects(allObjects, stackOrder,
-						 @"Bad ordering from -allObjects.");
-}
-
-- (void) testObjectEnumerator {
-	e = [objects objectEnumerator];
-	while (anObject = [e nextObject])
-		[stack pushObject:anObject];
-	
-	STAssertEqualObjects([[stack objectEnumerator] allObjects], stackOrder,
-						 @"Bad ordering from -objectEnumerator.");
-	NSUInteger count = 0;
-	e = [stack objectEnumerator];
-	while ([e nextObject])
-		count++;
-	STAssertEquals(count, [objects count], @"-objectEnumerator had wrong count.");
-}
-
-- (void) testReverseObjectEnumerator {
-	e = [objects objectEnumerator];
-	while (anObject = [e nextObject])
-		[stack pushObject:anObject];
-	
-	STAssertEqualObjects([[stack reverseObjectEnumerator] allObjects], objects,
-						 @"Bad ordering from -reverseObjectEnumerator.");
-	NSUInteger count = 0;
-	e = [stack reverseObjectEnumerator];
-	while ([e nextObject])
-		count++;
-	STAssertEquals(count, [objects count], @"-reverseObjectEnumerator had wrong count.");
-}
-
-- (void) testDescription {
-	e = [objects objectEnumerator];
-	while (anObject = [e nextObject])
-		[stack pushObject:anObject];
-	
-	STAssertEqualObjects([stack description], [stackOrder description],
-						 @"-description uses bad ordering.");
-}
-
-#if OBJC_API_2
-- (void) testNSFastEnumeration {
-	NSUInteger limit = 32;
-	for (NSUInteger number = 1; number <= limit; number++)
-		[stack pushObject:[NSNumber numberWithUnsignedInteger:number]];
-	NSUInteger expected = limit, count = 0;
-	for (NSNumber *object in stack) {
-		STAssertEquals([object unsignedIntegerValue], expected--,
-		               @"Objects should be enumerated in descending order.");
-		++count;
-	}
-	STAssertEquals(count, limit, @"Count of enumerated items is incorrect.");
-	
-	BOOL raisedException = NO;
-	@try {
-		for (id object in stack)
-			[stack pushObject:@"123"];
-	}
-	@catch (NSException *exception) {
-		raisedException = YES;
-	}
-	STAssertTrue(raisedException, @"Should raise mutation exception.");	
-}
-#endif
 
 @end

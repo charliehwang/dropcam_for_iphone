@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHAbstractListCollection.m
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -29,7 +29,7 @@
 	while (anObject = [e nextObject])
 #endif
 	{
-		[list appendObject:anObject];
+		[list addObject:anObject];
 	}
 	return self;
 }
@@ -108,6 +108,10 @@
 	return [list objectAtIndex:index];
 }
 
+- (NSArray*) objectsAtIndexes:(NSIndexSet*)indexes {
+	return [list objectsAtIndexes:indexes];
+}
+
 - (void) removeObject:(id)anObject {
 	[list removeObject:anObject];
 }
@@ -120,8 +124,16 @@
 	[list removeObjectAtIndex:index];
 }
 
+- (void) removeObjectsAtIndexes:(NSIndexSet*)indexes {
+	[list removeObjectsAtIndexes:indexes];
+}
+
 - (void) removeAllObjects {
 	[list removeAllObjects];
+}
+
+- (void) replaceObjectAtIndex:(NSUInteger)index withObject:(id)anObject {
+	[list replaceObjectAtIndex:index withObject:anObject];
 }
 
 - (NSArray*) allObjects {

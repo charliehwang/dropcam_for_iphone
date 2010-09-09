@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHLinkedList.h
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -46,63 +46,6 @@
  */
 - (id) initWithArray:(NSArray*)anArray;
 
-#pragma mark Adding Objects
-/** @name Adding Objects */
-// @{
-
-/**
- Add an object to the receiver, inserted at the front.
- 
- @param anObject The object to add to the receiver.
-
- @throw NSInvalidArgumentException If @a anObject is @c nil.
- 
- @see appendObject:
- @see firstObject
- */
-- (void) prependObject:(id)anObject;
-
-/**
- Add an object to the receiver, inserted at the back.
- 
- @param anObject The object to add to the receiver.
- 
- @throw NSInvalidArgumentException If @a anObject is @c nil.
- 
- @see lastObject
- @see prependObject:
- */
-- (void) appendObject:(id)anObject;
-
-/**
- Insert a given object at a given index. If @a index is already occupied, then objects at @a index and beyond are shifted one spot toward the end.
- 
- @param anObject The object to add to the receiver.
- @param index The index at which to insert @a anObject.
- 
- @throw NSInvalidArgumentException If @a anObject is @c nil.
- @throw NSRangeException If @a index is greater than the number of elements in the receiver.
- 
- @attention Inserting in the middle of a linked list is a somewhat inefficient operation &mdash; although values aren't shifted by one like in arrays, elements must be traversed one by one to find the specified index.
- */
-- (void) insertObject:(id)anObject atIndex:(NSUInteger)index;
-
-/**
- Exchange the objects in the receiver at given indexes.
- 
- @param idx1 The index of the object to replace with the object at @a idx2.
- @param idx2 The index of the object to replace with the object at @a idx1.
- 
- @throw NSRangeException If @a idx1 or @a idx2 is greater than the number of elements in the receiver.
- 
- @attention Index-oriented operations are generally slow in linked lists, which are not optimized for random access. Arrays are much faster for such functionality.
- 
- @see indexOfObject:
- @see objectAtIndex:
- */
-- (void) exchangeObjectAtIndex:(NSUInteger)idx1 withObjectAtIndex:(NSUInteger)idx2;
-
-// @}
 #pragma mark Querying Contents
 /** @name Querying Contents */
 // @{
@@ -113,7 +56,6 @@
  @return An array containing the objects in the receiver. If the receiver is empty, the array is also empty.
  
  @see count
- @see countByEnumeratingWithState:objects:count:
  @see objectEnumerator
  @see removeAllObjects
  */
@@ -174,7 +116,7 @@
  Returns the lowest index of a given object, matched using @c isEqual:.
  
  @param anObject The object to be matched and located in the receiver.
- @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c CHNotFound.
+ @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c NSNotFound.
  */
 - (NSUInteger) indexOfObject:(id)anObject;
 
@@ -182,7 +124,7 @@
  Returns the lowest index of a given object, matched using the == operator.
  
  @param anObject The object to be matched and located in the receiver.
- @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c CHNotFound.
+ @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c NSNotFound.
  */
 - (NSUInteger) indexOfObjectIdenticalTo:(id)anObject;
 
@@ -198,9 +140,9 @@
  Returns the object located at @a index.
  
  @param index An index from which to retrieve an object.
- @return The object located at index.
+ @return The object located at @a index.
  
- @throw NSRangeException If @a index is greater than the number of elements in the receiver.
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
  
  @see indexOfObject:
  @see indexOfObjectIdenticalTo:
@@ -216,14 +158,104 @@
  @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
  
  @see allObjects
- @see countByEnumeratingWithState:objects:count:
  */
 - (NSEnumerator*) objectEnumerator;
 
+/**
+ Returns an array containing the objects in the receiver at the indexes specified by a given index set.
+ 
+ @param indexes A set of positions corresponding to objects to retrieve from the receiver.
+ @return A new array containing the objects in the receiver specified by @a indexes.
+ 
+ @throw NSRangeException if any location in @a indexes exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a indexes is @c nil.
+ 
+ @attention To retrieve objects in a given NSRange, pass <code>[NSIndexSet indexSetWithIndexesInRange:range]</code> as the parameter to this method.
+ 
+ @see allObjects
+ @see objectAtIndex:
+ @see removeObjectsAtIndexes:
+ */
+- (NSArray*) objectsAtIndexes:(NSIndexSet*)indexes;
+
 // @}
-#pragma mark Removing Objects
-/** @name Removing Objects */
+#pragma mark Modifying Contents
+/** @name Modifying Contents */
 // @{
+
+/**
+ Add an object to the receiver, inserted at the back.
+ 
+ @param anObject The object to add to the receiver.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ 
+ @see lastObject
+ @see prependObject:
+ */
+- (void) addObject:(id)anObject;
+
+/**
+ Adds the objects in a given array to the receiver, then re-establish the heap property. After all the objects have been inserted, objects are "heapified" as necessary, proceeding backwards from index @c count/2 down to @c 0.
+ 
+ @param anArray An array of objects to add to the receiver.
+ 
+ @see addObject:
+ */
+- (void) addObjectsFromArray:(NSArray*)anArray;
+
+/**
+ Exchange the objects in the receiver at given indexes.
+ 
+ @param idx1 The index of the object to replace with the object at @a idx2.
+ @param idx2 The index of the object to replace with the object at @a idx1.
+ 
+ @throw NSRangeException if @a idx1 or @a idx2 exceeds the bounds of the receiver.
+ 
+ @attention Index-oriented operations are generally slow in linked lists, which are not optimized for random access. Arrays are much faster for such functionality.
+ 
+ @see indexOfObject:
+ @see objectAtIndex:
+ */
+- (void) exchangeObjectAtIndex:(NSUInteger)idx1 withObjectAtIndex:(NSUInteger)idx2;
+
+/**
+ Insert a given object at a given index. If @a index is already occupied, then objects at @a index and beyond are (conceptually) shifted one spot toward the end.
+ 
+ @param anObject The object to add to the receiver.
+ @param index The index at which to insert @a anObject.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ 
+ @see insertObjects:atIndexes:
+ */
+- (void) insertObject:(id)anObject atIndex:(NSUInteger)index;
+
+/**
+ Insert the objects in in a given array at the specified indexes in the receiver. Each object in @a objects is inserted into the receiver in turn at the corresponding location specified in @a indexes after earlier insertions have been made. The resulting behavior is the same as that exhibited by the same method in NSMutableArray.
+ 
+ @param objects An array of objects to insert into the receiver at locations from @a indexes.
+ @param indexes The indexes at which the objects in @a objects should be inserted.
+ 
+ @throw NSInvalidArgumentException if @a objects or @a indexes is @c nil, or if <code>[objects count] != [indexes count]</code>.
+ @throw NSRangeException if any index in @a indexes exceeds the bounds of the receiver.
+
+ @see insertObject:atIndex:
+ */
+- (void) insertObjects:(NSArray *)objects atIndexes:(NSIndexSet *)indexes;
+
+/**
+ Add an object to the receiver, inserted at the front.
+ 
+ @param anObject The object to add to the receiver.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ 
+ @see addObject:
+ @see firstObject
+ */
+- (void) prependObject:(id)anObject;
 
 /**
  Removes the first item in the receiver.
@@ -256,6 +288,15 @@
 - (void) removeObject:(id)anObject;
 
 /**
+ Remove the object at @a index. To fill the gap, elements beyond @a index have 1 subtracted from their index.
+ 
+ @param index The index from which to remove the object.
+ 
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ */
+- (void) removeObjectAtIndex:(NSUInteger)index;
+
+/**
  Remove @b all occurrences of @a anObject, matched using the == operator.
  
  @param anObject The object to remove from the receiver.
@@ -270,13 +311,19 @@
 - (void) removeObjectIdenticalTo:(id)anObject;
 
 /**
- Remove the object at @a index. To fill the gap, elements beyond @a index have 1 subtracted from their index.
+ Remove the objects at the specified indexes from the receiver. Indexes of elements beyond the first specified index will decrease.
+ @param indexes A set of positions corresponding to objects to remove from the receiver.
  
- @param index The index from which to remove the object.
+ @throw NSRangeException if any location in @a indexes exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a indexes is @c nil.
  
- @throw NSRangeException If @a index is greater than the number of elements in the receiver.
+ @attention To remove objects in a given @c NSRange, pass <code>[NSIndexSet indexSetWithIndexesInRange:range]</code> as the parameter to this method.
+ 
+ @see objectsAtIndexes:
+ @see removeAllObjects
+ @see removeObjectAtIndex:
  */
-- (void) removeObjectAtIndex:(NSUInteger)index;
+- (void) removeObjectsAtIndexes:(NSIndexSet*)indexes;
 
 /**
  Empty the receiver of all of its members.
@@ -288,71 +335,16 @@
  */
 - (void) removeAllObjects;
 
-// @}
-#pragma mark <NSCoding>
-/** @name <NSCoding> */
-// @{
-
 /**
- Initialize the receiver using data from a given keyed unarchiver.
+ Replaces the object at a given index with a given object.
  
- @param decoder A keyed unarchiver object.
+ @param index The index of the object to be replaced.
+ @param anObject The object with which to replace the object at @a index in the receiver.
  
- @see NSCoding protocol
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
  */
-- (id) initWithCoder:(NSCoder*)decoder;
-
-/**
- Encodes data from the receiver using a given keyed archiver.
- 
- @param encoder A keyed archiver object.
- 
- @see NSCoding protocol
- */
-- (void) encodeWithCoder:(NSCoder*)encoder;
-
-// @}
-#pragma mark <NSCopying>
-/** @name <NSCopying> */
-// @{
-
-/**
- Returns a new instance that is a mutable copy of the receiver. If garbage collection is @b not enabled, the copy is retained before being returned, but the sender is responsible for releasing it.
- 
- @param zone An area of memory from which to allocate the new instance. If zone is @c nil, the default zone is used. 
- 
- @note The default \link NSObject#copy -copy\endlink method invokes this method with a @c nil argument.
- 
- @see NSCopying protocol
- */
-- (id) copyWithZone:(NSZone*)zone;
-
-// @}
-#pragma mark <NSFastEnumeration>
-/** @name <NSFastEnumeration> */
-// @{
-
-#if OBJC_API_2
-/**
- Called within <code>@b for (type variable @b in collection)</code> constructs. Returns by reference a C array of objects over which the sender should iterate, and as the return value the number of objects in the array.
- 
- @param state Context information used to track progress of an enumeration.
- @param stackbuf Pointer to a C array into which the receiver may copy objects for the sender to iterate over.
- @param len The maximum number of objects that may be stored in @a stackbuf.
- @return The number of objects in @c state->itemsPtr that may be iterated over, or @c 0 when the iteration is finished.
- 
- @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
- 
- @since Mac OS X v10.5 and later.
- 
- @see NSFastEnumeration protocol
- @see allObjects
- @see objectEnumerator
- */
-- (NSUInteger) countByEnumeratingWithState:(NSFastEnumerationState*)state
-                                   objects:(id*)stackbuf
-                                     count:(NSUInteger)len;
-#endif
+- (void) replaceObjectAtIndex:(NSUInteger)index withObject:(id)anObject;
 
 // @}
 @end

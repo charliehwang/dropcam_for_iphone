@@ -21,7 +21,7 @@
  */
 
 /**
- * @file libavcodec/vc1dec.c
+ * @file
  * VC-1 and WMV3 decoder
  *
  */
@@ -1481,7 +1481,7 @@ static int vc1_decode_i_block(VC1Context *v, DCTELEM block[64], int n, int coded
 
     {
         int last = 0, skip, value;
-        const int8_t *zz_table;
+        const uint8_t *zz_table;
         int scale;
         int k;
 
@@ -1667,7 +1667,7 @@ static int vc1_decode_i_block_adv(VC1Context *v, DCTELEM block[64], int n, int c
 
     if(coded) {
         int last = 0, skip, value;
-        const int8_t *zz_table;
+        const uint8_t *zz_table;
         int k;
 
         if(v->s.ac_pred) {
@@ -1874,7 +1874,7 @@ static int vc1_decode_intra_block(VC1Context *v, DCTELEM block[64], int n, int c
 
     if(coded) {
         int last = 0, skip, value;
-        const int8_t *zz_table;
+        const uint8_t *zz_table;
         int k;
 
         zz_table = wmv1_scantable[0];
@@ -2225,12 +2225,12 @@ static int vc1_decode_p_mb(VC1Context *v)
                     if((i>3) && (s->flags & CODEC_FLAG_GRAY)) continue;
                     s->dsp.vc1_inv_trans_8x8(s->block[i]);
                     if(v->rangeredfrm) for(j = 0; j < 64; j++) s->block[i][j] <<= 1;
-                    s->dsp.put_signed_pixels_clamped(s->block[i], s->dest[dst_idx] + off, s->linesize >> ((i & 4) >> 2));
+                    s->dsp.put_signed_pixels_clamped(s->block[i], s->dest[dst_idx] + off, i & 4 ? s->uvlinesize : s->linesize);
                     if(v->pq >= 9 && v->overlap) {
                         if(v->c_avail)
-                            s->dsp.vc1_h_overlap(s->dest[dst_idx] + off, s->linesize >> ((i & 4) >> 2));
+                            s->dsp.vc1_h_overlap(s->dest[dst_idx] + off, i & 4 ? s->uvlinesize : s->linesize);
                         if(v->a_avail)
-                            s->dsp.vc1_v_overlap(s->dest[dst_idx] + off, s->linesize >> ((i & 4) >> 2));
+                            s->dsp.vc1_v_overlap(s->dest[dst_idx] + off, i & 4 ? s->uvlinesize : s->linesize);
                     }
                     if(apply_loop_filter && s->mb_x && s->mb_x != (s->mb_width - 1) && s->mb_y && s->mb_y != (s->mb_height - 1)){
                         int left_cbp, top_cbp;
@@ -2359,9 +2359,9 @@ static int vc1_decode_p_mb(VC1Context *v)
                     s->dsp.put_signed_pixels_clamped(s->block[i], s->dest[dst_idx] + off, (i&4)?s->uvlinesize:s->linesize);
                     if(v->pq >= 9 && v->overlap) {
                         if(v->c_avail)
-                            s->dsp.vc1_h_overlap(s->dest[dst_idx] + off, s->linesize >> ((i & 4) >> 2));
+                            s->dsp.vc1_h_overlap(s->dest[dst_idx] + off, i & 4 ? s->uvlinesize : s->linesize);
                         if(v->a_avail)
-                            s->dsp.vc1_v_overlap(s->dest[dst_idx] + off, s->linesize >> ((i & 4) >> 2));
+                            s->dsp.vc1_v_overlap(s->dest[dst_idx] + off, i & 4 ? s->uvlinesize : s->linesize);
                     }
                     if(v->s.loop_filter && s->mb_x && s->mb_x != (s->mb_width - 1) && s->mb_y && s->mb_y != (s->mb_height - 1)){
                         int left_cbp, top_cbp;
@@ -2561,7 +2561,7 @@ static void vc1_decode_b_mb(VC1Context *v)
             if((i>3) && (s->flags & CODEC_FLAG_GRAY)) continue;
             s->dsp.vc1_inv_trans_8x8(s->block[i]);
             if(v->rangeredfrm) for(j = 0; j < 64; j++) s->block[i][j] <<= 1;
-            s->dsp.put_signed_pixels_clamped(s->block[i], s->dest[dst_idx] + off, s->linesize >> ((i & 4) >> 2));
+            s->dsp.put_signed_pixels_clamped(s->block[i], s->dest[dst_idx] + off, i & 4 ? s->uvlinesize : s->linesize);
         } else if(val) {
             vc1_decode_p_block(v, s->block[i], i, mquant, ttmb, first_block, s->dest[dst_idx] + off, (i&4)?s->uvlinesize:s->linesize, (i&4) && (s->flags & CODEC_FLAG_GRAY), 0, 0, 0);
             if(!v->ttmbf && ttmb < 8) ttmb = -1;

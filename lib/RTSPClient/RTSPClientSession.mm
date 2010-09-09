@@ -32,10 +32,11 @@ public:
 		if (numTruncatedBytes > 0)
 			NSLog(@"Frame was truncated.");
 		
-		NSData *frameData = [NSData dataWithBytesNoCopy:buf length:frameSize freeWhenDone:NO];
-		NSDate *frameTime = [NSDate dateWithTimeIntervalSince1970:presentationTime.tv_sec + presentationTime.tv_usec / 1000000.0];
-		
-		[subsession.delegate didReceiveFrame:frameData presentationTime:frameTime];
+		[subsession.delegate didReceiveFrame:buf
+							 frameDataLength:frameSize
+							presentationTime:presentationTime 
+					  durationInMicroseconds:durationInMicroseconds 
+								  subsession:subsession];
 		
 		continuePlaying();		
 	}
@@ -97,6 +98,10 @@ struct RTSPSubsessionContext {
 	[super dealloc];
 }
 
+- (NSString*)getSessionId {
+	return [NSString stringWithCString:context->subsession->sessionId encoding:NSUTF8StringEncoding];
+}
+
 - (NSString*)getMediumName {
 	return [NSString stringWithCString:context->subsession->mediumName() encoding:NSUTF8StringEncoding];
 }
@@ -113,8 +118,24 @@ struct RTSPSubsessionContext {
 	return context->subsession->serverPortNum;
 }
 
+- (NSUInteger)getClientPortNum {
+	return context->subsession->clientPortNum();
+}
+
+- (int)getSocket {
+	return context->subsession->rtpSource()->RTPgs()->socketNum();
+}
+
 - (NSString*)getSDP_spropparametersets {
 	return [NSString stringWithCString:context->subsession->fmtp_spropparametersets() encoding:NSUTF8StringEncoding];
+}
+
+- (NSString*)getSDP_config {
+	return [NSString stringWithCString:context->subsession->fmtp_config() encoding:NSUTF8StringEncoding];
+}
+
+- (NSString*)getSDP_mode {
+	return [NSString stringWithCString:context->subsession->fmtp_mode() encoding:NSUTF8StringEncoding];
 }
 
 - (NSUInteger)getSDP_VideoWidth {
@@ -127,11 +148,15 @@ struct RTSPSubsessionContext {
 
 - (void)increaseReceiveBufferTo:(NSUInteger)size {
 	int recvSocket = context->subsession->rtpSource()->RTPgs()->socketNum();
-	increaseReceiveBufferTo(*context->env, recvSocket, 2000000);
+	increaseReceiveBufferTo(*context->env, recvSocket, size);
 }
 
 - (void)setPacketReorderingThresholdTime:(NSUInteger)uSeconds {
 	context->subsession->rtpSource()->setPacketReorderingThresholdTime(uSeconds);	
+}
+
+- (BOOL)timeIsSynchronized {
+	return context->subsession->rtpSource()->hasBeenSynchronizedUsingRTCP();
 }
 
 - (void)setDelegate:(id <RTSPSubsessionDelegate>)_delegate {
@@ -227,16 +252,14 @@ struct RTSPClientSessionContext {
 	return subsessions;
 }
 
-- (BOOL)setupSubsession:(RTSPSubsession*)subsession clientPortNum:(NSUInteger)portNum {
+- (BOOL)setupSubsession:(RTSPSubsession*)subsession useTCP:(BOOL)useTCP {
 	MediaSubsession* cppSubsession = [subsession getMediaSubsession];
-	
-	cppSubsession->setClientPortNum(portNum);	
 	
 	if (!cppSubsession->initiate())	{
 		return NO;
 	}
 	
-	if (!context->client->setupMediaSubsession(*cppSubsession, False, False)) {
+	if (!context->client->setupMediaSubsession(*cppSubsession, False, useTCP)) {
 		return NO;
 	}
 	
@@ -283,5 +306,10 @@ struct RTSPClientSessionContext {
 - (NSString*)getSDP {
 	return sdp;
 }
+
+- (int)getSocket {
+	return context->client->socketNum();
+}
+
 
 @end

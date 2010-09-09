@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHSortedSet.h
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  Copyright (c) 2002, Phillip Morelock <http://www.phillipmorelock.com>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
@@ -37,7 +37,8 @@ typedef enum {
  Java includes a <a href="http://java.sun.com/javase/6/docs/api/java/util/SortedSet.html">SortedSet</a> interface as part of the <a href="http://java.sun.com/javase/6/docs/technotes/guides/collections/">Java Collections Framework</a>. Many other programming languages also have sorted sets, most commonly implemented as <a href="http://en.wikipedia.org/wiki/Binary_search_tree">binary search trees</a>.
  
  @see CHSearchTree
- 
+ @see CHSortedDictionary
+
  @todo Add more operations similar to those supported by NSSet and NSMutableSet, such as:
 	- <code>- (NSArray*) allObjectsFilteredUsingPredicate:</code>
 	- <code>- (void) filterUsingPredicate:</code>
@@ -72,35 +73,6 @@ typedef enum {
  */
 - (id) initWithArray:(NSArray*)anArray;
 
-#pragma mark Adding Objects
-/** @name Adding Objects */
-// @{
-
-/**
- Adds a given object to the receiver, if the object is not already a member.
- 
- Ordering is based on an object's response to the @c -compare: message. Since no duplicates are allowed, if the receiver already contains an object for which a @c -compare: message returns @c NSOrderedSame, that object is released and replaced by @a anObject.
- 
- @param anObject The object to add to the receiver.
- @throw NSInvalidArgumentException If @a anObject is @c nil.
- 
- @see addObjectsFromArray:
- */
-- (void) addObject:(id)anObject;
-
-/**
- Adds to the receiver each object in a given array, if the object is not already a member.
- 
- Ordering is based on an object's response to the @c -compare: message. Since no duplicates are allowed, if the receiver already contains an object for which a @c -compare: message returns @c NSOrderedSame, that object is released and replaced by the matching object from @a anArray.
- 
- @param anArray An array of objects to add to the receiver.
- 
- @see addObject:
- @see lastObject
- */
-- (void) addObjectsFromArray:(NSArray*)anArray;
-
-// @}
 #pragma mark Querying Contents
 /** @name Querying Contents */
 // @{
@@ -112,7 +84,6 @@ typedef enum {
  
  @see anyObject
  @see count
- @see countByEnumeratingWithState:objects:count:
  @see objectEnumerator
  @see removeAllObjects
  @see set
@@ -205,7 +176,6 @@ typedef enum {
  @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
  
  @see allObjects
- @see countByEnumeratingWithState:objects:count:
  @see reverseObjectEnumerator
  */
 - (NSEnumerator*) objectEnumerator;
@@ -250,9 +220,34 @@ typedef enum {
 							 options:(CHSubsetConstructionOptions)options;
 
 // @}
-#pragma mark Removing Objects
-/** @name Removing Objects */
+#pragma mark Modifying Contents
+/** @name Modifying Contents */
 // @{
+
+/**
+ Adds a given object to the receiver, if the object is not already a member.
+ 
+ Ordering is based on an object's response to the @c -compare: message. Since no duplicates are allowed, if the receiver already contains an object for which a @c -compare: message returns @c NSOrderedSame, that object is released and replaced by @a anObject.
+ 
+ @param anObject The object to add to the receiver.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ 
+ @see addObjectsFromArray:
+ */
+- (void) addObject:(id)anObject;
+
+/**
+ Adds to the receiver each object in a given array, if the object is not already a member.
+ 
+ Ordering is based on an object's response to the @c -compare: message. Since no duplicates are allowed, if the receiver already contains an object for which a @c -compare: message returns @c NSOrderedSame, that object is released and replaced by the matching object from @a anArray.
+ 
+ @param anArray An array of objects to add to the receiver.
+ 
+ @see addObject:
+ @see lastObject
+ */
+- (void) addObjectsFromArray:(NSArray*)anArray;
 
 /**
  Remove all objects from the receiver; if the receiver is already empty, there is no effect.
@@ -293,72 +288,6 @@ typedef enum {
  @see removeAllObjects
  */
 - (void) removeObject:(id)anObject;
-
-// @}
-#pragma mark <NSCoding>
-/** @name <NSCoding> */
-// @{
-
-/**
- Initialize the receiver using data from a given keyed unarchiver.
- 
- @param decoder A keyed unarchiver object.
- 
- @see NSCoding protocol
- */
-- (id) initWithCoder:(NSCoder*)decoder;
-
-/**
- Encodes data from the receiver using a given keyed archiver.
- 
- @param encoder A keyed archiver object.
- 
- @see NSCoding protocol
- */
-- (void) encodeWithCoder:(NSCoder*)encoder;
-
-// @}
-#pragma mark <NSCopying>
-/** @name <NSCopying> */
-// @{
-
-/**
- Returns a new instance that is a mutable copy of the receiver. If garbage collection is @b not enabled, the copy is retained before being returned, but the sender is responsible for releasing it.
- 
- @param zone An area of memory from which to allocate the new instance. If zone is @c nil, the default zone is used. 
- 
- @note The default \link NSObject#copy -copy\endlink method invokes this method with a @c nil argument.
- 
- @see NSCopying protocol
- */
-- (id) copyWithZone:(NSZone*)zone;
-
-// @}
-#pragma mark <NSFastEnumeration>
-/** @name <NSFastEnumeration> */
-// @{
-
-#if OBJC_API_2
-/**
- Called within <code>@b for (type variable @b in collection)</code> constructs. Returns by reference a C array of objects over which the sender should iterate, and as the return value the number of objects in the array.
- 
- @param state Context information used to track progress of an enumeration.
- @param stackbuf Pointer to a C array into which the receiver may copy objects for the sender to iterate over.
- @param len The maximum number of objects that may be stored in @a stackbuf.
- @return The number of objects in @c state->itemsPtr that may be iterated over, or @c 0 when the iteration is finished.
- 
- @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
- 
- @since Mac OS X v10.5 and later.
- 
- @see NSFastEnumeration protocol
- @see allObjects
- @see objectEnumerator
- */
-- (NSUInteger) countByEnumeratingWithState:(NSFastEnumerationState*)state
-                                   objects:(id*)stackbuf
-                                     count:(NSUInteger)len;
-#endif
 
 // @}
 @end

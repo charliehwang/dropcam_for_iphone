@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHSortedDictionary.h
  
- Copyright (c) 2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2009-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -19,39 +19,25 @@
 
 /**
  A dictionary which enumerates keys according to their natural sorted order. The following additional operations are provided to take advantage of the ordering:
-   - \link #firstKey -firstKey\endlink
-   - \link #lastKey -lastKey\endlink
-   - \link #subsetFromKey:toKey:options: -subsetFromKey:toKey:options:\endlink
+   - \link #firstKey\endlink
+   - \link #lastKey\endlink
+   - \link #subsetFromKey:toKey:options:\endlink
  
- Key-value entries are inserted just as in a normal dictionary, including replacement of values for existing keys, as detailed in \link #setObject:forKey: -setObject:forKey:\endlink. However, an additional CHSortedSet structure is used in parallel to sort the keys, and keys are enumerated in that order.
+ Key-value entries are inserted just as in a normal dictionary, including replacement of values for existing keys, as detailed in \link NSMutableDictionary#setObject:forKey: -[NSMutableDictionary setObject:forKey:]\endlink. However, an additional CHSortedSet structure is used in parallel to sort the keys, and keys are enumerated in that order.
  
- Implementations of sorted maps include to Java's <a href="http://java.sun.com/javase/6/docs/api/java/util/SortedMap.html">SortedMap</a> interface and concrete <a href="http://java.sun.com/javase/6/docs/api/java/util/TreeMap.html">TreeMap</a>.
+ Implementations of sorted dictionaries (aka "maps") in other languages include the following:
+
+ - <a href="http://java.sun.com/javase/6/docs/api/java/util/SortedMap.html">SortedMap</a> (Java)
+ - <a href="http://www.cppreference.com/wiki/stl/map/start">map</a> (C++)
  
  @note Any method inherited from NSDictionary or NSMutableDictionary is supported, but only overridden methods are listed here.
  
- @todo Document CHSortedDictionary
+ @see CHSortedSet
  */
 @interface CHSortedDictionary : CHLockableDictionary {
 	id<CHSortedSet> sortedKeys;
 }
 
-#pragma mark Adding Objects
-/** @name Adding Objects */
-// @{
-
-/**
- Adds a given key-value pair to the receiver.
- 
- @param anObject The value for @a key. The object receives a @c -retain message before being added to the receiver. This value must not be @c nil.
- @param aKey The key for @a value. The key is copied (using @c -copyWithZone: — keys must conform to the NSCopying protocol). The key must not be @c nil.
- @throw NSInvalidArgumentException If @a aKey or @a anObject is @c nil. If you need to represent a @c nil value in the dictionary, use NSNull.
- 
- @see objectForKey:
- @see removeObjectForKey:
- */
-- (void) setObject:(id)anObject forKey:(id)aKey;
-
-// @}
 #pragma mark Querying Contents
 /** @name Querying Contents */
 // @{
@@ -62,7 +48,6 @@
  @return The minimum key in the receiver, or @c nil if the receiver is empty.
  
  @see lastKey
- @see removeObjectForFirstKey
  */
 - (id) firstKey;
 
@@ -72,7 +57,6 @@
  @return The maximum key in the receiver, or @c nil if the receiver is empty.
  
  @see firstKey
- @see removeObjectForLastKey
  */
 - (id) lastKey;
 

@@ -36,6 +36,7 @@
 #include "libpostproc/postprocess.h"
 #include "libavutil/avstring.h"
 #include "libavutil/pixdesc.h"
+#include "libavutil/eval.h"
 #include "libavcodec/opt.h"
 #include "cmdutils.h"
 #include "version.h"
@@ -58,7 +59,7 @@ double parse_number_or_die(const char *context, const char *numstr, int type, do
 {
     char *tail;
     const char *error;
-    double d = strtod(numstr, &tail);
+    double d = av_strtod(numstr, &tail);
     if (*tail)
         error= "Expected number for %s but found: %s\n";
     else if (d < min || d > max)
@@ -292,17 +293,11 @@ void set_context_opts(void *ctx, void *opts_ctx, int flags)
 void print_error(const char *filename, int err)
 {
     char errbuf[128];
+    const char *errbuf_ptr = errbuf;
 
-    switch(err) {
-#if CONFIG_NETWORK
-    case AVERROR(FF_NETERROR(EPROTONOSUPPORT)):
-        fprintf(stderr, "%s: Unsupported network protocol\n", filename);
-        break;
-#endif
-    default:
-        av_strerror(err, errbuf, sizeof(errbuf));
-        fprintf(stderr, "%s: %s\n", filename, errbuf);
-    }
+    if (av_strerror(err, errbuf, sizeof(errbuf)) < 0)
+        errbuf_ptr = strerror(AVUNERROR(err));
+    fprintf(stderr, "%s: %s\n", filename, errbuf_ptr);
 }
 
 #define PRINT_LIB_VERSION(outstream,libname,LIBNAME,indent)             \
@@ -615,6 +610,11 @@ void show_pix_fmts(void)
         "FLAGS NAME            NB_COMPONENTS BITS_PER_PIXEL\n"
         "-----\n");
 
+#if !CONFIG_SWSCALE
+#   define sws_isSupportedInput(x)  0
+#   define sws_isSupportedOutput(x) 0
+#endif
+
     for (pix_fmt = 0; pix_fmt < PIX_FMT_NB; pix_fmt++) {
         const AVPixFmtDescriptor *pix_desc = &av_pix_fmt_descriptors[pix_fmt];
         printf("%c%c%c%c%c %-16s       %d            %2d\n",
@@ -642,7 +642,7 @@ int read_yesno(void)
 
 int read_file(const char *filename, char **bufptr, size_t *size)
 {
-    FILE *f = fopen(filename, "r");
+    FILE *f = fopen(filename, "rb");
 
     if (!f) {
         fprintf(stderr, "Cannot read file '%s': %s\n", filename, strerror(errno));

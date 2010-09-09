@@ -62,13 +62,17 @@ DECLARE_ALIGNED(8,  const uint64_t, ff_pw_128) = 0x0080008000800080ULL;
 DECLARE_ALIGNED(8,  const uint64_t, ff_pw_255) = 0x00ff00ff00ff00ffULL;
 
 DECLARE_ALIGNED(8,  const uint64_t, ff_pb_1  ) = 0x0101010101010101ULL;
-DECLARE_ALIGNED(8,  const uint64_t, ff_pb_3  ) = 0x0303030303030303ULL;
+DECLARE_ALIGNED(16, const xmm_reg,  ff_pb_3  ) = {0x0303030303030303ULL, 0x0303030303030303ULL};
+DECLARE_ALIGNED(16, const xmm_reg,  ff_pb_4  ) = {0x0404040404040404ULL, 0x0404040404040404ULL};
 DECLARE_ALIGNED(8,  const uint64_t, ff_pb_7  ) = 0x0707070707070707ULL;
 DECLARE_ALIGNED(8,  const uint64_t, ff_pb_1F ) = 0x1F1F1F1F1F1F1F1FULL;
 DECLARE_ALIGNED(8,  const uint64_t, ff_pb_3F ) = 0x3F3F3F3F3F3F3F3FULL;
+DECLARE_ALIGNED(16, const xmm_reg,  ff_pb_80 ) = {0x8080808080808080ULL, 0x8080808080808080ULL};
 DECLARE_ALIGNED(8,  const uint64_t, ff_pb_81 ) = 0x8181818181818181ULL;
 DECLARE_ALIGNED(8,  const uint64_t, ff_pb_A1 ) = 0xA1A1A1A1A1A1A1A1ULL;
+DECLARE_ALIGNED(16, const xmm_reg,  ff_pb_F8 ) = {0xF8F8F8F8F8F8F8F8ULL, 0xF8F8F8F8F8F8F8F8ULL};
 DECLARE_ALIGNED(8,  const uint64_t, ff_pb_FC ) = 0xFCFCFCFCFCFCFCFCULL;
+DECLARE_ALIGNED(16, const xmm_reg,  ff_pb_FE ) = {0xFEFEFEFEFEFEFEFEULL, 0xFEFEFEFEFEFEFEFEULL};
 
 DECLARE_ALIGNED(16, const double, ff_pd_1)[2] = { 1.0, 1.0 };
 DECLARE_ALIGNED(16, const double, ff_pd_2)[2] = { 2.0, 2.0 };
@@ -2374,11 +2378,11 @@ static void float_to_int16_sse2(int16_t *dst, const float *src, long len){
 void ff_float_to_int16_interleave6_sse(int16_t *dst, const float **src, int len);
 void ff_float_to_int16_interleave6_3dnow(int16_t *dst, const float **src, int len);
 void ff_float_to_int16_interleave6_3dn2(int16_t *dst, const float **src, int len);
-int32_t ff_scalarproduct_int16_mmx2(int16_t *v1, int16_t *v2, int order, int shift);
-int32_t ff_scalarproduct_int16_sse2(int16_t *v1, int16_t *v2, int order, int shift);
-int32_t ff_scalarproduct_and_madd_int16_mmx2(int16_t *v1, int16_t *v2, int16_t *v3, int order, int mul);
-int32_t ff_scalarproduct_and_madd_int16_sse2(int16_t *v1, int16_t *v2, int16_t *v3, int order, int mul);
-int32_t ff_scalarproduct_and_madd_int16_ssse3(int16_t *v1, int16_t *v2, int16_t *v3, int order, int mul);
+int32_t ff_scalarproduct_int16_mmx2(const int16_t *v1, const int16_t *v2, int order, int shift);
+int32_t ff_scalarproduct_int16_sse2(const int16_t *v1, const int16_t *v2, int order, int shift);
+int32_t ff_scalarproduct_and_madd_int16_mmx2(int16_t *v1, const int16_t *v2, const int16_t *v3, int order, int mul);
+int32_t ff_scalarproduct_and_madd_int16_sse2(int16_t *v1, const int16_t *v2, const int16_t *v3, int order, int mul);
+int32_t ff_scalarproduct_and_madd_int16_ssse3(int16_t *v1, const int16_t *v2, const int16_t *v3, int order, int mul);
 void ff_add_hfyu_median_prediction_mmx2(uint8_t *dst, const uint8_t *top, const uint8_t *diff, int w, int *left, int *left_top);
 int  ff_add_hfyu_left_prediction_ssse3(uint8_t *dst, const uint8_t *src, int w, int left);
 int  ff_add_hfyu_left_prediction_sse4(uint8_t *dst, const uint8_t *src, int w, int left);
@@ -2653,6 +2657,15 @@ void dsputil_init_mmx(DSPContext* c, AVCodecContext *avctx)
                     c->vp3_h_loop_filter= ff_vp3_h_loop_filter_mmx2;
                 }
             }
+            if (CONFIG_VP3_DECODER) {
+                c->vp3_idct_dc_add = ff_vp3_idct_dc_add_mmx2;
+            }
+
+            if (CONFIG_VP3_DECODER
+                && (avctx->codec_id == CODEC_ID_VP3 || avctx->codec_id == CODEC_ID_THEORA)) {
+                c->put_no_rnd_pixels_tab[1][1] = put_no_rnd_pixels8_x2_exact_mmx2;
+                c->put_no_rnd_pixels_tab[1][2] = put_no_rnd_pixels8_y2_exact_mmx2;
+            }
 
 #define SET_QPEL_FUNCS(PFX, IDX, SIZE, CPU) \
             c->PFX ## _pixels_tab[IDX][ 0] = PFX ## SIZE ## _mc00_ ## CPU; \
@@ -2740,6 +2753,12 @@ void dsputil_init_mmx(DSPContext* c, AVCodecContext *avctx)
                 c->put_no_rnd_pixels_tab[1][2] = put_no_rnd_pixels8_y2_3dnow;
                 c->avg_pixels_tab[0][3] = avg_pixels16_xy2_3dnow;
                 c->avg_pixels_tab[1][3] = avg_pixels8_xy2_3dnow;
+            }
+
+            if (CONFIG_VP3_DECODER
+                && (avctx->codec_id == CODEC_ID_VP3 || avctx->codec_id == CODEC_ID_THEORA)) {
+                c->put_no_rnd_pixels_tab[1][1] = put_no_rnd_pixels8_x2_exact_3dnow;
+                c->put_no_rnd_pixels_tab[1][2] = put_no_rnd_pixels8_y2_exact_3dnow;
             }
 
             SET_QPEL_FUNCS(put_qpel, 0, 16, 3dnow);

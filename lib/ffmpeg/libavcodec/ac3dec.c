@@ -1268,7 +1268,7 @@ static int decode_audio_block(AC3DecodeContext *s, int blk)
     }
 
     /* apply spectral extension to high frequency bins */
-    if (s->spx_in_use) {
+    if (s->spx_in_use && CONFIG_EAC3_DECODER) {
         ff_eac3_apply_spectral_extension(s);
     }
 
@@ -1420,7 +1420,7 @@ static int ac3_decode_frame(AVCodecContext * avctx, void *data, int *data_size,
         out_samples += 256 * s->out_channels;
     }
     *data_size = s->num_blocks * 256 * avctx->channels * sizeof (int16_t);
-    return s->frame_size;
+    return FFMIN(buf_size, s->frame_size);
 }
 
 /**

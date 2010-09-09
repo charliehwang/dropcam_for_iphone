@@ -71,7 +71,7 @@ static int gxf_probe(AVProbeData *p) {
 /**
  * \brief gets the stream index for the track with the specified id, creates new
  *        stream if not found
- * \param stream id of stream to find / add
+ * \param id     id of stream to find / add
  * \param format stream format identifier
  */
 static int get_sindex(AVFormatContext *s, int id, int format) {
@@ -191,7 +191,7 @@ static AVRational fps_tag2avr(int32_t fps) {
 
 /**
  * \brief convert UMF attributes flags to AVRational fps
- * \param fps fps value from flags
+ * \param flags UMF flags to convert
  * \return fps as AVRational, or 0 / 0 if unknown
  */
 static AVRational fps_umf2avr(uint32_t flags) {
@@ -237,6 +237,10 @@ static void gxf_read_index(AVFormatContext *s, int pkt_len) {
     uint32_t map_cnt = get_le32(pb);
     int i;
     pkt_len -= 8;
+    if (s->flags & AVFMT_FLAG_IGNIDX) {
+        url_fskip(pb, pkt_len);
+        return;
+    }
     if (map_cnt > 1000) {
         av_log(s, AV_LOG_ERROR, "too many index entries %u (%x)\n", map_cnt, map_cnt);
         map_cnt = 1000;

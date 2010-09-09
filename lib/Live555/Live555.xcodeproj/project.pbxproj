@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		463CD6B7110E503300E6051B /* DVVideoFileServerMediaSubsession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 463CD6B3110E503300E6051B /* DVVideoFileServerMediaSubsession.cpp */; };
+		463CD6B8110E503300E6051B /* DVVideoRTPSource.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 463CD6B4110E503300E6051B /* DVVideoRTPSource.cpp */; };
+		463CD6B9110E503300E6051B /* DVVideoFileServerMediaSubsession.hh in Headers */ = {isa = PBXBuildFile; fileRef = 463CD6B5110E503300E6051B /* DVVideoFileServerMediaSubsession.hh */; };
+		463CD6BA110E503300E6051B /* DVVideoRTPSource.hh in Headers */ = {isa = PBXBuildFile; fileRef = 463CD6B6110E503300E6051B /* DVVideoRTPSource.hh */; };
 		46C59EF910DC3A950054B59A /* BasicHashTable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46C59DD010DC3A950054B59A /* BasicHashTable.cpp */; };
 		46C59EFA10DC3A950054B59A /* BasicTaskScheduler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46C59DD110DC3A950054B59A /* BasicTaskScheduler.cpp */; };
 		46C59EFB10DC3A950054B59A /* BasicTaskScheduler0.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46C59DD210DC3A950054B59A /* BasicTaskScheduler0.cpp */; };
@@ -298,6 +302,10 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		463CD6B3110E503300E6051B /* DVVideoFileServerMediaSubsession.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DVVideoFileServerMediaSubsession.cpp; sourceTree = "<group>"; };
+		463CD6B4110E503300E6051B /* DVVideoRTPSource.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DVVideoRTPSource.cpp; sourceTree = "<group>"; };
+		463CD6B5110E503300E6051B /* DVVideoFileServerMediaSubsession.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = DVVideoFileServerMediaSubsession.hh; path = include/DVVideoFileServerMediaSubsession.hh; sourceTree = "<group>"; };
+		463CD6B6110E503300E6051B /* DVVideoRTPSource.hh */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = DVVideoRTPSource.hh; path = include/DVVideoRTPSource.hh; sourceTree = "<group>"; };
 		46C59DD010DC3A950054B59A /* BasicHashTable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BasicHashTable.cpp; sourceTree = "<group>"; };
 		46C59DD110DC3A950054B59A /* BasicTaskScheduler.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BasicTaskScheduler.cpp; sourceTree = "<group>"; };
 		46C59DD210DC3A950054B59A /* BasicTaskScheduler0.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BasicTaskScheduler0.cpp; sourceTree = "<group>"; };
@@ -722,6 +730,10 @@
 		46C59DF110DC3A950054B59A /* liveMedia */ = {
 			isa = PBXGroup;
 			children = (
+				463CD6B3110E503300E6051B /* DVVideoFileServerMediaSubsession.cpp */,
+				463CD6B4110E503300E6051B /* DVVideoRTPSource.cpp */,
+				463CD6B5110E503300E6051B /* DVVideoFileServerMediaSubsession.hh */,
+				463CD6B6110E503300E6051B /* DVVideoRTPSource.hh */,
 				46C59DF210DC3A950054B59A /* AC3AudioRTPSink.cpp */,
 				46C59DF310DC3A950054B59A /* AC3AudioRTPSource.cpp */,
 				46C59DF410DC3A950054B59A /* AC3AudioStreamFramer.cpp */,
@@ -1162,6 +1174,8 @@
 				46C5A01210DC3A950054B59A /* strDup.hh in Headers */,
 				46C5A01310DC3A950054B59A /* UsageEnvironment.hh in Headers */,
 				46C5A01410DC3A950054B59A /* UsageEnvironment_version.hh in Headers */,
+				463CD6B9110E503300E6051B /* DVVideoFileServerMediaSubsession.hh in Headers */,
+				463CD6BA110E503300E6051B /* DVVideoRTPSource.hh in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1192,7 +1206,14 @@
 			isa = PBXProject;
 			buildConfigurationList = 1DEB922208733DC00010E9CD /* Build configuration list for PBXProject "Live555" */;
 			compatibilityVersion = "Xcode 3.1";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
 			mainGroup = 0867D691FE84028FC02AAC07 /* Live555 */;
 			productRefGroup = 034768DFFF38A50411DB9C8B /* Products */;
 			projectDirPath = "";
@@ -1349,6 +1370,8 @@
 				46C5A00F10DC3A950054B59A /* HashTable.cpp in Sources */,
 				46C5A01510DC3A950054B59A /* strDup.cpp in Sources */,
 				46C5A01610DC3A950054B59A /* UsageEnvironment.cpp in Sources */,
+				463CD6B7110E503300E6051B /* DVVideoFileServerMediaSubsession.cpp in Sources */,
+				463CD6B8110E503300E6051B /* DVVideoRTPSource.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1359,7 +1382,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				COPY_PHASE_STRIP = NO;
 				DSTROOT = /tmp/Live555.dst;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -1377,7 +1399,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				DSTROOT = /tmp/Live555.dst;
 				GCC_MODEL_TUNING = G5;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -1399,12 +1420,14 @@
 					"HAVE_SOCKADDR_LEN=1",
 					"SOCKLEN_T=socklen_t",
 				);
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = NO;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 3.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PREBINDING = NO;
-				SDKROOT = iphoneos3.0;
+				SDKROOT = iphoneos4.1;
 			};
 			name = Debug;
 		};
@@ -1419,12 +1442,14 @@
 					"HAVE_SOCKADDR_LEN=1",
 					"SOCKLEN_T=socklen_t",
 				);
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = NO;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 3.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PREBINDING = NO;
-				SDKROOT = iphoneos3.0;
+				SDKROOT = iphoneos4.1;
 			};
 			name = Release;
 		};

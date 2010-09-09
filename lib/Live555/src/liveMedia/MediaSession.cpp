@@ -21,9 +21,6 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 
 #include "liveMedia.hh"
 #include "Locale.hh"
-#ifdef SUPPORT_REAL_RTSP
-#include "../RealRTSP/include/RealRTSP.hh"
-#endif
 #include "GroupsockHelper.hh"
 #include <ctype.h>
 
@@ -65,9 +62,6 @@ MediaSession::MediaSession(UsageEnvironment& env)
     fConnectionEndpointName(NULL), fMaxPlayStartTime(0.0f), fMaxPlayEndTime(0.0f),
     fScale(1.0f), fMediaSessionType(NULL), fSessionName(NULL), fSessionDescription(NULL),
     fControlPath(NULL) {
-#ifdef SUPPORT_REAL_RTSP
-  RealInitSDPAttributes(this);
-#endif
   fSourceFilterAddr.s_addr = 0;
 
   // Get our host name, and use this for the RTCP CNAME:
@@ -91,9 +85,6 @@ MediaSession::~MediaSession() {
   delete[] fSessionName;
   delete[] fSessionDescription;
   delete[] fControlPath;
-#ifdef SUPPORT_REAL_RTSP
-  RealReclaimSDPAttributes(this);
-#endif
 }
 
 Boolean MediaSession::isMediaSession() const {
@@ -123,9 +114,6 @@ Boolean MediaSession::initializeWithSDP(char const* sdpDescription) {
     if (parseSDPAttribute_range(sdpLine)) continue;
     if (parseSDPAttribute_type(sdpLine)) continue;
     if (parseSDPAttribute_source_filter(sdpLine)) continue;
-#ifdef SUPPORT_REAL_RTSP
-    if (RealParseSDPAttributes(this, sdpLine)) continue;
-#endif
   }
 
   while (sdpLine != NULL) {
@@ -219,9 +207,6 @@ Boolean MediaSession::initializeWithSDP(char const* sdpDescription) {
       if (subsession->parseSDPAttribute_source_filter(sdpLine)) continue;
       if (subsession->parseSDPAttribute_x_dimensions(sdpLine)) continue;
       if (subsession->parseSDPAttribute_framerate(sdpLine)) continue;
-#ifdef SUPPORT_REAL_RTSP
-      if (RealParseSDPAttributes(subsession, sdpLine)) continue;
-#endif
 
       // (Later, check for malformed lines, and other valid SDP lines#####)
     }
@@ -287,7 +272,7 @@ Boolean MediaSession::parseSDPLine(char const* inputLine,
 static char* parseCLine(char const* sdpLine) {
   char* resultStr = NULL;
   char* buffer = strDupSize(sdpLine); // ensures we have enough space
-  if (sscanf(sdpLine, "c=IN IP4 %[^/ ]", buffer) == 1) {
+  if (sscanf(sdpLine, "c=IN IP4 %[^/\r\n]", buffer) == 1) {
     // Later, handle the optional /<ttl> and /<numAddresses> #####
     resultStr = strDup(buffer);
   }
@@ -556,9 +541,6 @@ MediaSubsession::MediaSubsession(MediaSession& parent)
     fRTPSocket(NULL), fRTCPSocket(NULL),
     fRTPSource(NULL), fRTCPInstance(NULL), fReadSource(NULL) {
   rtpInfo.seqNum = 0; rtpInfo.timestamp = 0; rtpInfo.infoIsNew = False;
-#ifdef SUPPORT_REAL_RTSP
-  RealInitSDPAttributes(this);
-#endif
 }
 
 MediaSubsession::~MediaSubsession() {
@@ -569,9 +551,6 @@ MediaSubsession::~MediaSubsession() {
   delete[] fControlPath; delete[] fConfig; delete[] fMode; delete[] fSpropParameterSets;
 
   delete fNext;
-#ifdef SUPPORT_REAL_RTSP
-  RealReclaimSDPAttributes(this);
-#endif
 }
 
 double MediaSubsession::playStartTime() const {
@@ -635,6 +614,7 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
       HashTable* socketHashTable = HashTable::create(ONE_WORD_HASH_KEYS);
       if (socketHashTable == NULL) break;
       Boolean success = False;
+      NoReuse dummy; // ensures that our new ephemeral port number won't be one that's already in use
 
       while (1) {
 	// Create a new socket:
@@ -721,8 +701,8 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
       // and create our RTP source accordingly
       // (Later make this code more efficient, as this set grows #####)
       // (Also, add more fmts that can be implemented by SimpleRTPSource#####)
-      Boolean createSimpleRTPSource = False;
-      Boolean doNormalMBitRule = False; // used if "createSimpleRTPSource"
+      Boolean createSimpleRTPSource = False; // by default; can be changed below
+      Boolean doNormalMBitRule = False; // default behavior if "createSimpleRTPSource" is True
       if (strcmp(fCodecName, "QCELP") == 0) { // QCELP audio
 	fReadSource =
 	  QCELPAudioRTPSource::createNew(env(), fRTPSocket, fRTPSource,
@@ -823,6 +803,11 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
 	  = H264VideoRTPSource::createNew(env(), fRTPSocket,
 					  fRTPPayloadFormat,
 					  fRTPTimestampFrequency);
+      } else if (strcmp(fCodecName, "DV") == 0) {
+	fReadSource = fRTPSource
+	  = DVVideoRTPSource::createNew(env(), fRTPSocket,
+					fRTPPayloadFormat,
+					fRTPTimestampFrequency);
       } else if (strcmp(fCodecName, "JPEG") == 0) { // motion JPEG
 	fReadSource = fRTPSource
 	  = JPEGVideoRTPSource::createNew(env(), fRTPSocket,
@@ -843,16 +828,6 @@ Boolean MediaSubsession::initiate(int useSpecialRTPoffset) {
 						 fRTPTimestampFrequency,
 						 mimeType);
 	delete[] mimeType;
-#ifdef SUPPORT_REAL_RTSP
-      } else if (strcmp(fCodecName, "X-PN-REALAUDIO") == 0 ||
-		 strcmp(fCodecName, "X-PN-MULTIRATE-REALAUDIO-LIVE") == 0 ||
-		 strcmp(fCodecName, "X-PN-REALVIDEO") == 0 ||
-		 strcmp(fCodecName, "X-PN-MULTIRATE-REALVIDEO-LIVE") == 0) {
-	// A RealNetworks 'RDT' stream (*not* a RTP stream)
-	fReadSource = RealRDTSource::createNew(env());
-	fRTPSource = NULL; // Note!
-	parentSession().isRealNetworksRDT = True;
-#endif
       } else if (  strcmp(fCodecName, "PCMU") == 0 // PCM u-law audio
 		   || strcmp(fCodecName, "GSM") == 0 // GSM audio
 		   || strcmp(fCodecName, "PCMA") == 0 // PCM a-law audio

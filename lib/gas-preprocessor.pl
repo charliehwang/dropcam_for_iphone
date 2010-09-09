@@ -10,27 +10,25 @@ use strict;
 # implements the subset of the gas preprocessor used by x264 and ffmpeg
 # that isn't supported by Apple's gas.
 
-# FIXME: doesn't work if the path has spaces, but oh well...
-my $gcc_cmd = join(' ', @ARGV);
-my $preprocess_c_cmd;
+my @gcc_cmd = @ARGV;
+my @preprocess_c_cmd;
 
-if ($gcc_cmd =~ /\S+\.c/) {
+if (grep /\.c$/, @gcc_cmd) {
     # C file (inline asm?) - compile
-    $preprocess_c_cmd = "$gcc_cmd -S";
-    $gcc_cmd =~ s/\S+\.c/-x assembler -/g;
-} elsif ($gcc_cmd =~ /\S+\.S/) {
+    @preprocess_c_cmd = (@gcc_cmd, "-S");
+} elsif (grep /\.[sS]$/, @gcc_cmd) {
     # asm file, just do C preprocessor
-    $preprocess_c_cmd = "$gcc_cmd -E";
-    $gcc_cmd =~ s/\S+\.S/-x assembler -/g;
+    @preprocess_c_cmd = (@gcc_cmd, "-E");
 } else {
     die "Unrecognized input filetype";
 }
+@gcc_cmd = map { /\.[csS]$/ ? qw(-x assembler -) : $_ } @gcc_cmd;
+@preprocess_c_cmd = map { /\.o$/ ? "-" : $_ } @preprocess_c_cmd;
 
-$preprocess_c_cmd =~ s/\S+\.o/-/g;
-
-open(ASMFILE, "-|", $preprocess_c_cmd) || die "Error running preprocessor";
+open(ASMFILE, "-|", @preprocess_c_cmd) || die "Error running preprocessor";
 
 my $current_macro = '';
+my $macro_level = 0;
 my %macro_lines;
 my %macro_args;
 my %macro_args_default;
@@ -61,37 +59,67 @@ while (<ASMFILE>) {
         die ".section $1 unsupported; figure out the mach-o section name and add it";
     }
 
-    # macros creating macros is not handled (is that valid?)
-    if (/\.macro\s+([\d\w\.]+)\s*(.*)/) {
-        $current_macro = $1;
+    parse_line($_);
+}
 
-        # commas in the argument list are optional, so only use whitespace as the separator
-        my $arglist = $2;
-        $arglist =~ s/,/ /g;
+sub parse_line {
+    my $line = @_[0];
 
-        my @args = split(/\s+/, $arglist);
-        foreach my $i (0 .. $#args) {
-            my @argpair = split(/=/, $args[$i]);
-            $macro_args{$current_macro}[$i] = $argpair[0];
-            $argpair[0] =~ s/:vararg$//;
-            $macro_args_default{$current_macro}{$argpair[0]} = $argpair[1];
+    if (/\.macro/) {
+        $macro_level++;
+        if ($macro_level > 1 && !$current_macro) {
+            die "nested macros but we don't have master macro";
         }
-        # ensure %macro_lines has the macro name added as a key
-        $macro_lines{$current_macro} = [];
     } elsif (/\.endm/) {
-        if (!$current_macro) {
-            die "ERROR: .endm without .macro";
+        $macro_level--;
+        if ($macro_level < 0) {
+            die "unmatched .endm";
+        } elsif ($macro_level == 0) {
+            $current_macro = '';
+            return;
         }
-        $current_macro = '';
-    } elsif ($current_macro) {
-        push(@{$macro_lines{$current_macro}}, $_);
+    }
+
+    if ($macro_level > 1) {
+        push(@{$macro_lines{$current_macro}}, $line);
+    } elsif ($macro_level == 0) {
+        expand_macros($line);
     } else {
-        expand_macros($_);
+        if (/\.macro\s+([\d\w\.]+)\s*(.*)/) {
+            $current_macro = $1;
+
+            # commas in the argument list are optional, so only use whitespace as the separator
+            my $arglist = $2;
+            $arglist =~ s/,/ /g;
+
+            my @args = split(/\s+/, $arglist);
+            foreach my $i (0 .. $#args) {
+                my @argpair = split(/=/, $args[$i]);
+                $macro_args{$current_macro}[$i] = $argpair[0];
+                $argpair[0] =~ s/:vararg$//;
+                $macro_args_default{$current_macro}{$argpair[0]} = $argpair[1];
+            }
+            # ensure %macro_lines has the macro name added as a key
+            $macro_lines{$current_macro} = [];
+
+        } elsif ($current_macro) {
+            push(@{$macro_lines{$current_macro}}, $line);
+        } else {
+            die "macro level without a macro name";
+        }
     }
 }
 
 sub expand_macros {
     my $line = @_[0];
+
+    if (/\.purgem\s+([\d\w\.]+)/) {
+        delete $macro_lines{$1};
+        delete $macro_args{$1};
+        delete $macro_args_default{$1};
+        return;
+    }
+
     if ($line =~ /(\S+:|)\s*([\w\d\.]+)\s*(.*)/ && exists $macro_lines{$2}) {
         push(@pass1_lines, $1);
         my $macro = $2;
@@ -152,7 +180,7 @@ sub expand_macros {
                 $macro_line =~ s/\\$_/$replacements{$_}/g;
             }
             $macro_line =~ s/\\\(\)//g;     # remove \()
-            expand_macros($macro_line);
+            parse_line($macro_line);
         }
     } else {
         push(@pass1_lines, $line);
@@ -160,7 +188,7 @@ sub expand_macros {
 }
 
 close(ASMFILE) or exit 1;
-open(ASMFILE, "|-", $gcc_cmd) or die "Error running assembler";
+open(ASMFILE, "|-", @gcc_cmd) or die "Error running assembler";
 
 my @sections;
 my $num_repts;
@@ -235,6 +263,7 @@ foreach my $line (@pass1_lines) {
         if ($num_repts =~ s/(\.\w+.*)//) {
             $rept_lines .= "$1\n";
         }
+        $num_repts = eval($num_repts);
     } elsif ($line =~ /\.endr/) {
         for (1 .. $num_repts) {
             print ASMFILE $rept_lines;

@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHQueue.h
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  Copyright (c) 2002, Phillip Morelock <http://www.phillipmorelock.com>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
@@ -21,6 +21,9 @@
  A <a href="http://en.wikipedia.org/wiki/Queue_(data_structure)">queue</a> protocol with methods for <a href="http://en.wikipedia.org/wiki/FIFO">FIFO</a> ("First In, First Out") operations.
  
  A queue is commonly compared to waiting in line. When objects are added, they go to the back of the line, and objects are always removed from the front of the line. These actions are accomplished using \link #addObject: -addObject:\endlink and \link #removeFirstObject -removeFirstObject\endlink, respectively. The frontmost object may be examined (not removed) using \link #firstObject -firstObject\endlink.
+ 
+ @see CHDeque
+ @see CHStack
  */
 @protocol CHQueue
 #if OBJC_API_2
@@ -43,22 +46,6 @@
  */
 - (id) initWithArray:(NSArray*)anArray;
 
-#pragma mark Adding Objects
-/** @name Adding Objects */
-// @{
-
-/**
- Add an object to the back of the queue.
- 
- @param anObject The object to add to the back of the queue.
- @throw NSInvalidArgumentException If @a anObject is @c nil.
- 
- @see lastObject
- @see removeFirstObject
- */
-- (void) addObject:(id)anObject;
-
-// @}
 #pragma mark Querying Contents
 /** @name Querying Contents */
 // @{
@@ -69,7 +56,6 @@
  @return An array with the objects in this queue. If the queue is empty, the array is also empty.
  
  @see count
- @see countByEnumeratingWithState:objects:count:
  @see objectEnumerator
  @see removeAllObjects
  */
@@ -117,6 +103,30 @@
 - (id) firstObject;
 
 /**
+ Returns the lowest index of a given object, matched using @c isEqual:.
+ 
+ @param anObject The object to search for in the receiver.
+ @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c NSNotFound.
+ 
+ @see indexOfObjectIdenticalTo:
+ @see objectAtIndex:
+ @see removeObjectAtIndex:
+ */
+- (NSUInteger) indexOfObject:(id)anObject;
+
+/**
+ Returns the lowest index of a given object, matched using the == operator.
+ 
+ @param anObject The object to be matched and located in the receiver.
+ @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c NSNotFound.
+ 
+ @see indexOfObject:
+ @see objectAtIndex:
+ @see removeObjectAtIndex:
+ */
+- (NSUInteger) indexOfObjectIdenticalTo:(id)anObject;
+
+/**
  Compares the receiving queue to another queue. Two queues have equal contents if they each hold the same number of objects and objects at a given position in each queue satisfy the \link NSObject#isEqual: -isEqual:\endlink test.
  
  @param otherQueue A queue.
@@ -135,6 +145,20 @@
 - (id) lastObject;
 
 /**
+ Returns the object located at @a index in the receiver.
+ 
+ @param index An index from which to retrieve an object.
+ @return The object located at @a index.
+ 
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ 
+ @see indexOfObject:
+ @see indexOfObjectIdenticalTo:
+ @see removeObjectAtIndex:
+ */
+- (id) objectAtIndex:(NSUInteger)index;
+
+/**
  Returns an enumerator that accesses each object in the queue from front to back.
  
  @return An enumerator that accesses each object in the queue from front to back. The enumerator returned is never @c nil; if the queue is empty, the enumerator will always return @c nil for \link NSEnumerator#nextObject -nextObject\endlink and an empty array for \link NSEnumerator#allObjects -allObjects\endlink.
@@ -143,14 +167,65 @@
  @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
 
  @see allObjects
- @see countByEnumeratingWithState:objects:count:
  */
 - (NSEnumerator*) objectEnumerator;
 
+/**
+ Returns an array containing the objects in the receiver at the indexes specified by a given index set.
+ 
+ @param indexes A set of positions corresponding to objects to retrieve from the receiver.
+ @return A new array containing the objects in the receiver specified by @a indexes.
+ 
+ @throw NSRangeException if any location in @a indexes exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a indexes is @c nil.
+ 
+ @attention To retrieve objects in a given NSRange, pass <code>[NSIndexSet indexSetWithIndexesInRange:range]</code> as the parameter to this method.
+ 
+ @see allObjects
+ @see objectAtIndex:
+ @see removeObjectsAtIndexes:
+ */
+- (NSArray*) objectsAtIndexes:(NSIndexSet*)indexes;
+
 // @}
-#pragma mark Removing Objects
-/** @name Removing Objects */
+#pragma mark Modifying Contents
+/** @name Modifying Contents */
 // @{
+
+/**
+ Add an object to the back of the queue.
+ 
+ @param anObject The object to add to the back of the queue.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ 
+ @see lastObject
+ @see removeFirstObject
+ */
+- (void) addObject:(id)anObject;
+
+/**
+ Exchange the objects in the receiver at given indexes.
+ 
+ @param idx1 The index of the object to replace with the object at @a idx2.
+ @param idx2 The index of the object to replace with the object at @a idx1.
+ 
+ @throw NSRangeException if @a idx1 or @a idx2 exceeds the bounds of the receiver.
+ 
+ @see indexOfObject:
+ @see objectAtIndex:
+ */
+- (void) exchangeObjectAtIndex:(NSUInteger)idx1 withObjectAtIndex:(NSUInteger)idx2;
+
+/**
+ Empty the receiver of all of its members.
+ 
+ @see allObjects
+ @see removeFirstObject
+ @see removeObject:
+ @see removeObjectIdenticalTo:
+ */
+- (void) removeAllObjects;
 
 /**
  Remove the front object in the queue; no effect if the queue is already empty.
@@ -173,6 +248,19 @@
 - (void) removeObject:(id)anObject;
 
 /**
+ Remove the object at a given index from the receiver.
+ 
+ @param index The index of the object to remove.
+ 
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ 
+ @see indexOfObject:
+ @see indexOfObjectIdenticalTo:
+ @see objectAtIndex:
+ */
+- (void) removeObjectAtIndex:(NSUInteger)index;
+
+/**
  Remove @b all occurrences of @a anObject, matched using the == operator.
  
  @param anObject The object to be removed from the queue.
@@ -185,81 +273,30 @@
 - (void) removeObjectIdenticalTo:(id)anObject;
 
 /**
- Empty the receiver of all of its members.
+ Remove the objects at the specified indexes from the receiver. Indexes of elements beyond the first specified index will decrease.
+ @param indexes A set of positions corresponding to objects to remove from the receiver.
  
- @see allObjects
- @see removeFirstObject
- @see removeObject:
- @see removeObjectIdenticalTo:
+ @throw NSRangeException if any location in @a indexes exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a indexes is @c nil.
+ 
+ @attention To remove objects in a given @c NSRange, pass <code>[NSIndexSet indexSetWithIndexesInRange:range]</code> as the parameter to this method.
+ 
+ @see objectsAtIndexes:
+ @see removeAllObjects
+ @see removeObjectAtIndex:
  */
-- (void) removeAllObjects;
+- (void) removeObjectsAtIndexes:(NSIndexSet*)indexes;
+
+/**
+ Replaces the object at a given index with a given object.
+ 
+ @param index The index of the object to be replaced.
+ @param anObject The object with which to replace the object at @a index in the receiver.
+ 
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ */
+- (void) replaceObjectAtIndex:(NSUInteger)index withObject:(id)anObject;
 
 // @}
-#pragma mark <NSCoding>
-/** @name <NSCoding> */
-// @{
-
-/**
- Initialize the receiver using data from a given keyed unarchiver.
- 
- @param decoder A keyed unarchiver object.
- 
- @see NSCoding protocol
- */
-- (id) initWithCoder:(NSCoder*)decoder;
-
-/**
- Encodes data from the receiver using a given keyed archiver.
- 
- @param encoder A keyed archiver object.
- 
- @see NSCoding protocol
- */
-- (void) encodeWithCoder:(NSCoder*)encoder;
-
-// @}
-#pragma mark <NSCopying>
-/** @name <NSCopying> */
-// @{
-
-/**
- Returns a new instance that is a mutable copy of the receiver. If garbage collection is @b not enabled, the copy is retained before being returned, but the sender is responsible for releasing it.
- 
- @param zone An area of memory from which to allocate the new instance. If zone is @c nil, the default zone is used. 
- 
- @note The default \link NSObject#copy -copy\endlink method invokes this method with a @c nil argument.
- @return A new instance that is a copy of the receiver.
- 
- @see NSCopying protocol
- */
-- (id) copyWithZone:(NSZone*)zone;
-
-// @}
-#pragma mark <NSFastEnumeration>
-/** @name <NSFastEnumeration> */
-// @{
-
-#if OBJC_API_2
-/**
- Called within <code>@b for (type variable @b in collection)</code> constructs. Returns by reference a C array of objects over which the sender should iterate, and as the return value the number of objects in the array.
- 
- @param state Context information used to track progress of an enumeration.
- @param stackbuf Pointer to a C array into which the receiver may copy objects for the sender to iterate over.
- @param len The maximum number of objects that may be stored in @a stackbuf.
- @return The number of objects in @c state->itemsPtr that may be iterated over, or @c 0 when the iteration is finished.
- 
- @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
- 
- @since Mac OS X v10.5 and later.
-
- @see NSFastEnumeration protocol
- @see allObjects
- @see objectEnumerator
- */
-- (NSUInteger) countByEnumeratingWithState:(NSFastEnumerationState*)state
-                                   objects:(id*)stackbuf
-                                     count:(NSUInteger)len;
-#endif
-
-// @{
 @end

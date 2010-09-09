@@ -20,10 +20,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-/**
- * @file libavformat/aea.c
- */
-
 #include "avformat.h"
 #include "raw.h"
 #include "libavutil/intreadwrite.h"
@@ -50,10 +46,9 @@ static int aea_read_probe(AVProbeData *p)
         /* Check so that the redundant bsm bytes and info bytes are valid
          * the block size mode bytes have to be the same
          * the info bytes have to be the same
-         * the block size mode and info byte can't be the same
          */
-        if (bsm_s == bsm_e && inb_s == inb_e && bsm_s != inb_s)
-            return AVPROBE_SCORE_MAX / 2;
+        if (bsm_s == bsm_e && inb_s == inb_e)
+            return AVPROBE_SCORE_MAX / 4 + 1;
     }
     return 0;
 }

@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHSortedDictionary.m
  
- Copyright (c) 2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2009-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -26,16 +26,6 @@
 
 // The NSCoding methods inherited from CHLockableDictionary work fine here.
 
-#pragma mark Adding Objects
-
-- (void) setObject:(id)anObject forKey:(id)aKey {
-	[self willChangeValueForKey:aKey];
-	id clonedKey = [[aKey copy] autorelease];
-	[sortedKeys addObject:clonedKey];
-	CFDictionarySetValue(dictionary, clonedKey, anObject);
-	[self didChangeValueForKey:aKey];
-}
-
 #pragma mark Querying Contents
 
 /**
@@ -43,10 +33,9 @@
  
  @return An array containing the receiver's keys in sorted order. The array is empty if the receiver has no entries.
  
- @see allValues
- @see count
- @see keyEnumerator
- @see countByEnumeratingWithState:objects:count:
+ @see \link NSDictionary#allValues - allValues\endlink
+ @see \link NSDictionary#count - count\endlink
+ @see \link NSDictionary#keyEnumerator - keyEnumerator\endlink
  */
 - (NSArray*) allKeys {
 	return [super allKeys];
@@ -86,18 +75,26 @@
 	return subset;
 }
 
-#pragma mark Removing Objects
+#pragma mark Modifying Contents
 
 - (void) removeAllObjects {
-	[super removeAllObjects]; // Sends KVO notifications
+	[super removeAllObjects];
 	[sortedKeys removeAllObjects];
 }
 
 - (void) removeObjectForKey:(id)aKey {
 	if (CFDictionaryContainsKey(dictionary, aKey)) {
-		[super removeObjectForKey:aKey]; // Sends KVO notifications
+		[super removeObjectForKey:aKey];
 		[sortedKeys removeObject:aKey];
 	}
+}
+
+- (void) setObject:(id)anObject forKey:(id)aKey {
+	if (anObject == nil || aKey == nil)
+		CHNilArgumentException([self class], _cmd);
+	id clonedKey = [[aKey copy] autorelease];
+	[sortedKeys addObject:clonedKey];
+	CFDictionarySetValue(dictionary, clonedKey, anObject);
 }
 
 @end

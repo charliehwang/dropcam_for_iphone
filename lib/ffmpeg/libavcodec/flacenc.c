@@ -98,7 +98,7 @@ typedef struct FlacEncodeContext {
 } FlacEncodeContext;
 
 /**
- * Writes streaminfo metadata block to byte array
+ * Write streaminfo metadata block to byte array
  */
 static void write_streaminfo(FlacEncodeContext *s, uint8_t *header)
 {
@@ -123,8 +123,8 @@ static void write_streaminfo(FlacEncodeContext *s, uint8_t *header)
 }
 
 /**
- * Sets blocksize based on samplerate
- * Chooses the closest predefined blocksize >= BLOCK_TIME_MS milliseconds
+ * Set blocksize based on samplerate
+ * Choose the closest predefined blocksize >= BLOCK_TIME_MS milliseconds
  */
 static int select_blocksize(int samplerate, int block_time_ms)
 {
@@ -787,7 +787,7 @@ static int encode_residual(FlacEncodeContext *ctx, int ch)
        omethod == ORDER_METHOD_4LEVEL ||
        omethod == ORDER_METHOD_8LEVEL) {
         int levels = 1 << omethod;
-        uint32_t bits[levels];
+        uint32_t bits[1 << ORDER_METHOD_8LEVEL];
         int order;
         int opt_index = levels-1;
         opt_order = max_order-1;

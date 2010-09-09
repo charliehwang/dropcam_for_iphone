@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHTreap.h
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -56,7 +56,8 @@
  Add an object to the tree with a randomly-generated priority value. This encourages (but doesn't necessarily guarantee) well-balanced treaps. Random numbers are generated using @c arc4random and cast as an NSUInteger.
  
  @param anObject The object to add to the treap.
- @throw NSInvalidArgumentException If @a anObject is @c nil.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
  
  @see #addObject:withPriority:
  */
@@ -68,7 +69,8 @@
  @param anObject The object to add to the treap.
  @param priority The priority to assign to @a nObject. Higher values percolate to the top.
  @note Although @a priority is typed as NSUInteger (consistent with Foundation APIs), \link CHBinaryTreeNode CHBinaryTreeNode->priority\endlink is typed as @c u_int32_t, so the value stored is actually <code>priority % CHTreapNotFound</code>.
- @throw NSInvalidArgumentException If @a anObject is @c nil.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
  
  If @a anObject already exists in the treap, @a priority replaces the existing priority, and the existing node is percolated up or down to maintain the heap property. Thus, this method can be used to manipulate the depth of an object. Using a specific priority value for an object allows the user to impose a heap ordering by giving higher priorities to objects that should bubble towards the top, and lower priorities to objects that should bubble towards the bottom. In theory, this makes it significantly faster to retrieve commonly searched-for items, at the possible cost of a less-balanced treap overall, depending on the mapping of priorities and the sorted order of the objects. Use with caution.
  */

@@ -24,8 +24,6 @@
 #include "internal.h"
 #include "libavutil/random_seed.h"
 
-#include <unistd.h>
-
 #include "rtpenc.h"
 
 //#define DEBUG
@@ -80,10 +78,10 @@ static int rtp_write_header(AVFormatContext *s1)
     if (s->payload_type < 0)
         s->payload_type = RTP_PT_PRIVATE + (st->codec->codec_type == AVMEDIA_TYPE_AUDIO);
 
-    s->base_timestamp = ff_random_get_seed();
+    s->base_timestamp = av_get_random_seed();
     s->timestamp = s->base_timestamp;
     s->cur_timestamp = 0;
-    s->ssrc = ff_random_get_seed();
+    s->ssrc = av_get_random_seed();
     s->first_packet = 1;
     s->first_rtcp_ntp_time = ff_ntp_time();
     if (s1->start_time_realtime)
@@ -130,6 +128,12 @@ static int rtp_write_header(AVFormatContext *s1)
             n = 1;
         s->max_payload_size = n * TS_PACKET_SIZE;
         s->buf_ptr = s->buf;
+        break;
+    case CODEC_ID_H264:
+        /* check for H.264 MP4 syntax */
+        if (st->codec->extradata_size > 4 && st->codec->extradata[0] == 1) {
+            s->nal_length_size = (st->codec->extradata[4] & 0x03) + 1;
+        }
         break;
     case CODEC_ID_AMR_NB:
     case CODEC_ID_AMR_WB:

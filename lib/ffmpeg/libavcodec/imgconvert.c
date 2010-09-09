@@ -20,7 +20,7 @@
  */
 
 /**
- * @file libavcodec/imgconvert.c
+ * @file
  * misc image conversion routines
  */
 
@@ -32,9 +32,9 @@
 
 #include "avcodec.h"
 #include "dsputil.h"
-#include "colorspace.h"
 #include "internal.h"
 #include "imgconvert.h"
+#include "libavutil/colorspace.h"
 #include "libavutil/pixdesc.h"
 
 #if HAVE_MMX
@@ -602,6 +602,7 @@ int ff_fill_pointer(AVPicture *picture, uint8_t *ptr, enum PixelFormat pix_fmt,
     case PIX_FMT_BGR4:
     case PIX_FMT_MONOWHITE:
     case PIX_FMT_MONOBLACK:
+    case PIX_FMT_Y400A:
         picture->data[0] = ptr;
         picture->data[1] = NULL;
         picture->data[2] = NULL;
@@ -947,7 +948,8 @@ int ff_get_plane_bytewidth(enum PixelFormat pix_fmt, int width, int plane)
         return (width * bits + 7) >> 3;
         break;
     case FF_PIXEL_PLANAR:
-            if (plane == 1 || plane == 2)
+            if ((pix_fmt != PIX_FMT_NV12 && pix_fmt != PIX_FMT_NV21) &&
+                (plane == 1 || plane == 2))
                 width= -((-width)>>desc->log2_chroma_w);
 
             return (width * pf->depth + 7) >> 3;

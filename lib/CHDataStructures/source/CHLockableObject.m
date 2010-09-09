@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHLockableObject.m
  
- Copyright (c) 2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2009-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -17,9 +17,9 @@
 	@synchronized (self) {
 		if (lock == nil) {
 			lock = [[NSLock alloc] init];
-			if ([lock respondsToSelector:@selector(setName:)])
-				[lock performSelector:@selector(setName:)
-				           withObject:[NSString stringWithFormat:@"NSLock-%@-0x%x", [self class], self]];
+#if OBJC_API_2
+			[lock setName:[NSString stringWithFormat:@"NSLock-%@-0x%x", [self class], self]];
+#endif
 		}
 	}
 }
@@ -47,10 +47,6 @@
 }
 
 #pragma mark -
-
-+ (void) initialize {
-	initializeGCStatus();
-}
 
 - (void) dealloc {
 	[lock release];

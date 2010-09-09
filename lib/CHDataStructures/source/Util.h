@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- Util.h
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -57,6 +57,13 @@ void* __strong NSAllocateCollectable(NSUInteger size, NSUInteger options);
 
 void* __strong NSReallocateCollectable(void *ptr, NSUInteger size, NSUInteger options);
 
+#define objc_memmove_collectable memmove
+
+#else
+
+// This is declared in <objc/objc-auto.h>, but importing the header is overkill.
+HIDDEN OBJC_EXPORT void* objc_memmove_collectable(void *dst, const void *src, size_t size);
+
 #endif
 
 #pragma mark -
@@ -64,16 +71,48 @@ void* __strong NSReallocateCollectable(void *ptr, NSUInteger size, NSUInteger op
 /** Global variable to simplify checking if garbage collection is enabled. */
 OBJC_EXPORT BOOL kCHGarbageCollectionNotEnabled;
 
+/** Global variable to store the size of a pointer only once. */
+HIDDEN OBJC_EXPORT size_t kCHPointerSize;
+
 /**
- Determines GC status and sets @c kCHGarbageCollectionNotEnabled appropriately.
- Intended to be called from @c +initialize of direct implementors of CHLockable.
+ Simple function for checking object equality, to be used as a function pointer.
+ 
+ @param o1 The first object to be compared.
+ @param o1 The second object to be compared.
+ @return <code>[o1 isEqual:o2]</code>
  */
-HIDDEN void initializeGCStatus();
+HIDDEN OBJC_EXPORT BOOL objectsAreEqual(id o1, id o2);
+
+/**
+ Simple function for checking object identity, to be used as a function pointer.
+ 
+ @param o1 The first object to be compared.
+ @param o1 The second object to be compared.
+ @return <code>o1 == o2</code>
+ */
+HIDDEN OBJC_EXPORT BOOL objectsAreIdentical(id o1, id o2);
+
+/**
+ Determine whether two collections enumerate the equivalent objects in the same order.
+ 
+ @param collection1 The first collection to be compared.
+ @param collection2 The second collection to be compared.
+ 
+ @throw Exception if one of both of the arguments do not respond to the @c -count or @c -objectEnumerator selectors.
+ */
+OBJC_EXPORT BOOL collectionsAreEqual(id collection1, id collection2);
+
+/**
+ Generate a hash for a collection based on the count and up to two objects. If objects are provided, the result of their -hash method will be used.
+ 
+ @param count The number of objects in the collection.
+ @param o1 The first object to include in the hash.
+ @param o2 The second object to include in the hash.
+ @return An unsigned integer that can be used as a table address in a hash table structure.
+ */
+HIDDEN OBJC_EXPORT NSUInteger hashOfCountAndObjects(NSUInteger count, id o1, id o2);
 
 #pragma mark -
-
-/** Indicates that an object was not found when returning an NSUInteger. */
-#define CHNotFound NSUIntegerMax
 
 /**
  Convenience function for raising an exception for an invalid range (index).
@@ -84,6 +123,7 @@ HIDDEN void initializeGCStatus();
  @param method The method selector where the problem originated. Callers should pass @c _cmd for this parameter.
  @param index The offending index passed to the receiver.
  @param elements The number of elements present in the receiver.
+ 
  @throw NSRangeException
  
  @see \link NSException#raise:format: +[NSException raise:format:]\endlink
@@ -99,6 +139,7 @@ OBJC_EXPORT void CHIndexOutOfRangeException(Class aClass, SEL method,
  @param aClass The class object for the originator of the exception. Callers should pass the result of <code>[self class]</code> for this parameter.
  @param method The method selector where the problem originated. Callers should pass @c _cmd for this parameter.
  @param str An NSString describing the offending invalid argument.
+ 
  @throw NSInvalidArgumentException
  
  @see \link NSException#raise:format: +[NSException raise:format:]\endlink
@@ -112,6 +153,7 @@ OBJC_EXPORT void CHInvalidArgumentException(Class aClass, SEL method, NSString *
  
  @param aClass The class object for the originator of the exception. Callers should pass the result of <code>[self class]</code> for this parameter.
  @param method The method selector where the problem originated. Callers should pass @c _cmd for this parameter.
+ 
  @throw NSInvalidArgumentException
  
  @see CHInvalidArgumentException()
@@ -125,6 +167,7 @@ OBJC_EXPORT void CHNilArgumentException(Class aClass, SEL method);
  
  @param aClass The class object for the originator of the exception. Callers should pass the result of <code>[self class]</code> for this parameter.
  @param method The method selector where the problem originated. Callers should pass @c _cmd for this parameter.
+ 
  @throw NSGenericException
  
  @see \link NSException#raise:format: +[NSException raise:format:]\endlink
@@ -138,6 +181,7 @@ OBJC_EXPORT void CHMutatedCollectionException(Class aClass, SEL method);
  
  @param aClass The class object for the originator of the exception. Callers should pass the result of <code>[self class]</code> for this parameter.
  @param method The method selector where the problem originated. Callers should pass @c _cmd for this parameter.
+ 
  @throw NSInternalInconsistencyException
  
  @see \link NSException#raise:format: +[NSException raise:format:]\endlink
@@ -173,25 +217,3 @@ OBJC_EXPORT void CHQuietLog(NSString *format, ...);
 	CHQuietLog((format),##__VA_ARGS__); \
 }
 #endif
-
-#pragma mark -
-
-/**
- Determine whether two collections enumerate the equivalent objects in the same order.
- 
- @param collection1 The first collection to be compared.
- @param collection2 The second collection to be compared.
- 
- @throw Exception If one of both of the arguments do not respond to the @c -count or @c -objectEnumerator selectors.
- */
-OBJC_EXPORT BOOL collectionsAreEqual(id collection1, id collection2);
-
-/**
- Generate a hash for a collection based on the count and up to two objects. If objects are provided, the result of their -hash method will be used.
- 
- @param count The number of objects in the collection.
- @param o1 The first object to include in the hash.
- @param o2 The second object to include in the hash.
- @return An unsigned integer that can be used as a table address in a hash table structure.
- */
-HIDDEN OBJC_EXPORT NSUInteger hashOfCountAndObjects(NSUInteger count, id o1, id o2);

@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHAbstractBinarySearchTree.m
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -13,7 +13,6 @@
 
 // Definitions of extern variables from CHAbstractBinarySearchTree_Internal.h
 size_t kCHBinaryTreeNodeSize = sizeof(CHBinaryTreeNode);
-size_t kCHPointerSize = sizeof(void*);
 
 /**
  A dummy object that resides in the header node for a tree. Using a header node can simplify insertion logic by eliminating the need to check whether the root is null. The actual root of the tree is generally stored as the right child of the header node. In order to always proceed to the actual root node when traversing down the tree, instances of this class always return @c NSOrderedAscending when called as the receiver of the @c -compare: method.
@@ -94,12 +93,12 @@ static CHSearchTreeHeaderObject *headerObject = nil;
  */
 @interface CHBinarySearchTreeEnumerator : NSEnumerator
 {
-	__strong id<CHSearchTree> searchTree; /**< The tree being enumerated. */
-	__strong CHBinaryTreeNode *current; /**< The next node to be enumerated. */
-	__strong CHBinaryTreeNode *sentinelNode;  /**< Sentinel node in the tree. */
-	CHTraversalOrder traversalOrder; /**< Order in which to traverse the tree. */
-	unsigned long mutationCount; /**< Stores the collection's initial mutation. */
-	unsigned long *mutationPtr; /**< Pointer for checking changes in mutation. */
+	__strong id<CHSearchTree> searchTree; // The tree being enumerated.
+	__strong CHBinaryTreeNode *current; // The next node to be enumerated.
+	__strong CHBinaryTreeNode *sentinelNode; // Sentinel node in the tree.
+	CHTraversalOrder traversalOrder; // Order in which to traverse the tree.
+	unsigned long mutationCount; // Stores the collection's initial mutation.
+	unsigned long *mutationPtr; // Pointer for checking changes in mutation.
 	
 @private
 	// Pointers and counters that are used for various tree traveral orderings.
@@ -463,6 +462,13 @@ CHBinaryTreeNode* CHCreateBinaryTreeNodeWithObject(id anObject) {
 
 - (NSUInteger) hash {
 	return hashOfCountAndObjects(count, [self firstObject], [self lastObject]);
+}
+
+- (BOOL) isEqual:(id)otherObject {
+	if ([otherObject conformsToProtocol:@protocol(CHSortedSet)])
+		return [self isEqualToSortedSet:otherObject];
+	else
+		return NO;
 }
 
 - (BOOL) isEqualToSearchTree:(id<CHSearchTree>)otherTree {

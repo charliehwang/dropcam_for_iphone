@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHAbstractBinarySearchTree_Internal.h
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -29,7 +29,6 @@ HIDDEN CHBinaryTreeNode* CHCreateBinaryTreeNodeWithObject(id anObject);
 
 // These are used by subclasses; marked as HIDDEN to reduce external visibility.
 HIDDEN OBJC_EXPORT size_t kCHBinaryTreeNodeSize;
-HIDDEN OBJC_EXPORT size_t kCHPointerSize;
 
 #pragma mark Stack macros
 
@@ -90,7 +89,7 @@ HIDDEN OBJC_EXPORT size_t kCHPointerSize;
 	if (queueHead == queueTail) { \
 		queue = NSReallocateCollectable(queue, kCHPointerSize*queueCapacity*2, NSScannedOption); \
 		/* Copy wrapped-around portion to end of queue and move tail index */ \
-		memcpy(queue+queueCapacity, queue, kCHPointerSize*queueTail); \
+		objc_memmove_collectable(queue+queueCapacity, queue, kCHPointerSize*queueTail); \
 		/* Zeroing out shifted memory can simplify debugging queue problems */ \
 		/*bzero(queue, kCHPointerSize*queueTail);*/ \
 		queueTail += queueCapacity; \

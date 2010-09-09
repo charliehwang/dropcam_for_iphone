@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHLockableSet.m
  
- Copyright (c) 2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2009-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -48,9 +48,9 @@ static const CFSetCallBacks kCHLockableSetCallbacks = {
 	@synchronized (self) {
 		if (lock == nil) {
 			lock = [[NSLock alloc] init];
-			if ([lock respondsToSelector:@selector(setName:)])
-				[lock performSelector:@selector(setName:)
-				           withObject:[NSString stringWithFormat:@"NSLock-%@-0x%x", [self class], self]];
+#if OBJC_API_2
+			[lock setName:[NSString stringWithFormat:@"NSLock-%@-0x%x", [self class], self]];
+#endif
 		}
 	}
 }
@@ -79,12 +79,8 @@ static const CFSetCallBacks kCHLockableSetCallbacks = {
 
 #pragma mark -
 
-+ (void) initialize {
-	initializeGCStatus();
-}
-
 - (void) dealloc {
-	CFRelease(set);
+	CFRelease(set); // The set will never be null at this point.
 	[lock release];
 	[super dealloc];
 }
@@ -116,31 +112,6 @@ static const CFSetCallBacks kCHLockableSetCallbacks = {
 // Overridden from NSMutableSet to encode/decode as the proper class.
 - (Class) classForKeyedArchiver {
 	return [self class];
-}
-
-#pragma mark <NSCopying>
-
-- (id) copyWithZone:(NSZone*)zone {
-	CHLockableSet *copy = [[[self class] allocWithZone:zone] init];
-	[copy addObjectsFromArray:[self allObjects]];
-	return copy;
-}
-
-#pragma mark <NSFastEnumeration>
-
-#if OBJC_API_2
-- (NSUInteger) countByEnumeratingWithState:(NSFastEnumerationState*)state
-                                   objects:(id*)stackbuf
-                                     count:(NSUInteger)len
-{
-	return [super countByEnumeratingWithState:state objects:stackbuf count:len];
-}
-#endif
-
-#pragma mark Adding Objects
-
-- (void) addObject:(id)anObject {
-	CFSetSetValue(set, anObject);
 }
 
 #pragma mark Querying Contents
@@ -175,7 +146,11 @@ static const CFSetCallBacks kCHLockableSetCallbacks = {
 	return [(id)set objectEnumerator];
 }
 
-#pragma mark Removing Objects
+#pragma mark Modifying Contents
+
+- (void) addObject:(id)anObject {
+	CFSetSetValue(set, anObject);
+}
 
 - (void) removeAllObjects {
 	CFSetRemoveAllValues(set);
@@ -183,6 +158,14 @@ static const CFSetCallBacks kCHLockableSetCallbacks = {
 
 - (void) removeObject:(id)anObject {
 	CFSetRemoveValue(set, anObject);
+}
+
+#pragma mark <NSCopying>
+
+- (id) copyWithZone:(NSZone*)zone {
+	CHLockableSet *copy = [[[self class] allocWithZone:zone] init];
+	[copy addObjectsFromArray:[self allObjects]];
+	return copy;
 }
 
 @end

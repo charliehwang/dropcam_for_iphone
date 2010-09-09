@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHOrderedSet.h
  
- Copyright (c) 2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2009-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -9,9 +9,14 @@
  */
 
 #import "CHOrderedSet.h"
-#import "CHAbstractCircularBufferCollection.h"
+#import "CHCircularBuffer.h"
 
 @implementation CHOrderedSet
+
+- (void) dealloc {
+	[ordering release];
+	[super dealloc];
+}
 
 - (id) init {
 	return [self initWithCapacity:0];
@@ -19,42 +24,8 @@
 
 - (id) initWithCapacity:(NSUInteger)numItems {
 	if ((self = [super initWithCapacity:numItems]) == nil) return nil;
-	ordering = [[CHAbstractCircularBufferCollection alloc] init];
+	ordering = [[CHCircularBuffer alloc] initWithCapacity:numItems];
 	return self;
-}
-
-#pragma mark <NSFastEnumeration>
-
-#if OBJC_API_2
-- (NSUInteger) countByEnumeratingWithState:(NSFastEnumerationState*)state
-                                   objects:(id*)stackbuf
-                                     count:(NSUInteger)len
-{
-	return [ordering countByEnumeratingWithState:state objects:stackbuf count:len];
-}
-#endif
-
-#pragma mark Adding Objects
-
-- (void) addObject:(id)anObject {
-	if (anObject == nil)
-		CHNilArgumentException([self class], _cmd);
-	if (![self containsObject:anObject])
-		[ordering appendObject:anObject];
-	[super addObject:anObject];
-}
-
-- (void) exchangeObjectAtIndex:(NSUInteger)idx1 withObjectAtIndex:(NSUInteger)idx2 {
-	[ordering exchangeObjectAtIndex:idx1 withObjectAtIndex:idx2];
-}
-
-- (void) insertObject:(id)anObject atIndex:(NSUInteger)index {
-	if (index > [self count])
-		CHIndexOutOfRangeException([self class], _cmd, index, [self count]);
-	if ([self containsObject:anObject])
-		[ordering removeObject:anObject];
-	[ordering insertObject:anObject atIndex:index];
-	[super addObject:anObject];
 }
 
 #pragma mark Querying Contents
@@ -68,9 +39,7 @@
 }
 
 - (NSUInteger) hash {
-	return hashOfCountAndObjects([self count],
-	                             [self firstObject],
-	                             [self lastObject]);
+	return [ordering hash];
 }
 
 - (NSUInteger) indexOfObject:(id)anObject {
@@ -93,7 +62,58 @@
 	return [ordering objectEnumerator];
 }
 
-#pragma mark Removing Objects
+- (NSArray*) objectsAtIndexes:(NSIndexSet*)indexes {
+	if (indexes == nil)
+		CHNilArgumentException([self class], _cmd);
+	if ([indexes count] == 0)
+		return [NSArray array];
+	if ([indexes lastIndex] >= [self count])
+		CHIndexOutOfRangeException([self class], _cmd, [indexes lastIndex], [self count]);
+	NSMutableArray* objects = [NSMutableArray arrayWithCapacity:[self count]];
+	NSUInteger index = [indexes firstIndex];
+	while (index != NSNotFound) {
+		[objects addObject:[self objectAtIndex:index]];
+		index = [indexes indexGreaterThanIndex:index];
+	}
+	return objects;
+}
+
+- (CHOrderedSet*) orderedSetWithObjectsAtIndexes:(NSIndexSet*)indexes {
+	if (indexes == nil)
+		CHNilArgumentException([self class], _cmd);
+	if ([indexes count] == 0)
+		return [[self class] set];
+	CHOrderedSet* newSet = [[self class] setWithCapacity:[indexes count]];
+	NSUInteger index = [indexes firstIndex];
+	while (index != NSNotFound) {
+		[newSet addObject:[ordering objectAtIndex:index]];
+		index = [indexes indexGreaterThanIndex:index];
+	}
+	return newSet;
+}
+
+#pragma mark Modifying Contents
+
+- (void) addObject:(id)anObject {
+	if (anObject == nil)
+		CHNilArgumentException([self class], _cmd);
+	if (![self containsObject:anObject])
+		[ordering addObject:anObject];
+	[super addObject:anObject];
+}
+
+- (void) exchangeObjectAtIndex:(NSUInteger)idx1 withObjectAtIndex:(NSUInteger)idx2 {
+	[ordering exchangeObjectAtIndex:idx1 withObjectAtIndex:idx2];
+}
+
+- (void) insertObject:(id)anObject atIndex:(NSUInteger)index {
+	if (index > [self count])
+		CHIndexOutOfRangeException([self class], _cmd, index, [self count]);
+	if ([self containsObject:anObject])
+		[ordering removeObject:anObject];
+	[ordering insertObject:anObject atIndex:index];
+	[super addObject:anObject];
+}
 
 - (void) removeAllObjects {
 	[super removeAllObjects];
@@ -105,11 +125,7 @@
 }
 
 - (void) removeLastObject {
-	// [self removeObject:] would require a search of the entire linked list...
-	if ([self count] > 0) {
-		[super removeObject:[ordering lastObject]];
-		[ordering removeLastObject]; // Much faster than searching for anObject
-	}
+	[self removeObject:[ordering lastObject]];
 }
 
 - (void) removeObject:(id)anObject {
@@ -121,5 +137,21 @@
 	[super removeObject:[ordering objectAtIndex:index]];
 	[ordering removeObjectAtIndex:index];
 }
+
+- (void) removeObjectsAtIndexes:(NSIndexSet*)indexes {
+	[(NSMutableSet*)set minusSet:[NSSet setWithArray:[self objectsAtIndexes:indexes]]];
+	[ordering removeObjectsAtIndexes:indexes];
+}
+
+#pragma mark <NSFastEnumeration>
+
+#if OBJC_API_2
+- (NSUInteger) countByEnumeratingWithState:(NSFastEnumerationState*)state
+                                   objects:(id*)stackbuf
+                                     count:(NSUInteger)len
+{
+	return [ordering countByEnumeratingWithState:state objects:stackbuf count:len];
+}
+#endif
 
 @end

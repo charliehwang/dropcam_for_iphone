@@ -9,11 +9,6 @@
 /* Begin PBXBuildFile section */
 		4620D9E810FEAE74008AC6A9 /* VideoDecoder.h in Headers */ = {isa = PBXBuildFile; fileRef = 4620D9E610FEAE74008AC6A9 /* VideoDecoder.h */; };
 		4620D9E910FEAE74008AC6A9 /* VideoDecoder.m in Sources */ = {isa = PBXBuildFile; fileRef = 4620D9E710FEAE74008AC6A9 /* VideoDecoder.m */; };
-		46DF394810FEBC7500BEC3F5 /* libavcodec.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46DF394710FEBC7500BEC3F5 /* libavcodec.a */; };
-		46DF394A10FEBC7500BEC3F5 /* libavdevice.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46DF394910FEBC7500BEC3F5 /* libavdevice.a */; };
-		46DF394C10FEBC7500BEC3F5 /* libavformat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46DF394B10FEBC7500BEC3F5 /* libavformat.a */; };
-		46DF394E10FEBC7500BEC3F5 /* libavutil.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46DF394D10FEBC7500BEC3F5 /* libavutil.a */; };
-		46DF395010FEBC7500BEC3F5 /* libswscale.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46DF394F10FEBC7500BEC3F5 /* libswscale.a */; };
 		AA747D9F0F9514B9006C5449 /* DecoderWrapper_Prefix.pch in Headers */ = {isa = PBXBuildFile; fileRef = AA747D9E0F9514B9006C5449 /* DecoderWrapper_Prefix.pch */; };
 		AACBBE4A0F95108600F1A2B1 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AACBBE490F95108600F1A2B1 /* Foundation.framework */; };
 /* End PBXBuildFile section */
@@ -21,11 +16,6 @@
 /* Begin PBXFileReference section */
 		4620D9E610FEAE74008AC6A9 /* VideoDecoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VideoDecoder.h; sourceTree = "<group>"; };
 		4620D9E710FEAE74008AC6A9 /* VideoDecoder.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = VideoDecoder.m; sourceTree = "<group>"; };
-		46DF394710FEBC7500BEC3F5 /* libavcodec.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavcodec.a; path = /Users/lkirkby/Projects/iphone/lib/ffmpeg_build/libavcodec.a; sourceTree = "<absolute>"; };
-		46DF394910FEBC7500BEC3F5 /* libavdevice.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavdevice.a; path = /Users/lkirkby/Projects/iphone/lib/ffmpeg_build/libavdevice.a; sourceTree = "<absolute>"; };
-		46DF394B10FEBC7500BEC3F5 /* libavformat.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavformat.a; path = /Users/lkirkby/Projects/iphone/lib/ffmpeg_build/libavformat.a; sourceTree = "<absolute>"; };
-		46DF394D10FEBC7500BEC3F5 /* libavutil.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libavutil.a; path = /Users/lkirkby/Projects/iphone/lib/ffmpeg_build/libavutil.a; sourceTree = "<absolute>"; };
-		46DF394F10FEBC7500BEC3F5 /* libswscale.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libswscale.a; path = /Users/lkirkby/Projects/iphone/lib/ffmpeg_build/libswscale.a; sourceTree = "<absolute>"; };
 		AA747D9E0F9514B9006C5449 /* DecoderWrapper_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DecoderWrapper_Prefix.pch; sourceTree = SOURCE_ROOT; };
 		AACBBE490F95108600F1A2B1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		D2AAC07E0554694100DB518D /* libDecoderWrapper.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libDecoderWrapper.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -37,11 +27,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				AACBBE4A0F95108600F1A2B1 /* Foundation.framework in Frameworks */,
-				46DF394810FEBC7500BEC3F5 /* libavcodec.a in Frameworks */,
-				46DF394A10FEBC7500BEC3F5 /* libavdevice.a in Frameworks */,
-				46DF394C10FEBC7500BEC3F5 /* libavformat.a in Frameworks */,
-				46DF394E10FEBC7500BEC3F5 /* libavutil.a in Frameworks */,
-				46DF395010FEBC7500BEC3F5 /* libswscale.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -63,11 +48,6 @@
 				32C88DFF0371C24200C91783 /* Other Sources */,
 				0867D69AFE84028FC02AAC07 /* Frameworks */,
 				034768DFFF38A50411DB9C8B /* Products */,
-				46DF394710FEBC7500BEC3F5 /* libavcodec.a */,
-				46DF394910FEBC7500BEC3F5 /* libavdevice.a */,
-				46DF394B10FEBC7500BEC3F5 /* libavformat.a */,
-				46DF394D10FEBC7500BEC3F5 /* libavutil.a */,
-				46DF394F10FEBC7500BEC3F5 /* libswscale.a */,
 			);
 			name = DecoderWrapper;
 			sourceTree = "<group>";
@@ -136,7 +116,14 @@
 			isa = PBXProject;
 			buildConfigurationList = 1DEB922208733DC00010E9CD /* Build configuration list for PBXProject "DecoderWrapper" */;
 			compatibilityVersion = "Xcode 3.1";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
 			mainGroup = 0867D691FE84028FC02AAC07 /* DecoderWrapper */;
 			productRefGroup = 034768DFFF38A50411DB9C8B /* Products */;
 			projectDirPath = "";
@@ -163,7 +150,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				COPY_PHASE_STRIP = NO;
 				DSTROOT = /tmp/DecoderWrapper.dst;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -185,7 +171,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				DSTROOT = /tmp/DecoderWrapper.dst;
 				GCC_MODEL_TUNING = G5;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -205,12 +190,17 @@
 				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = "../ffmpeg/**";
+				HEADER_SEARCH_PATHS = (
+					"../ffmpeg/**",
+					"../ffmpeg_build/**",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 3.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PREBINDING = NO;
-				SDKROOT = iphoneos3.0;
+				SDKROOT = iphoneos4.1;
 			};
 			name = Debug;
 		};
@@ -219,12 +209,17 @@
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				GCC_C_LANGUAGE_STANDARD = c99;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = "../ffmpeg/**";
+				HEADER_SEARCH_PATHS = (
+					"../ffmpeg/**",
+					"../ffmpeg_build/**",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 3.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PREBINDING = NO;
-				SDKROOT = iphoneos3.0;
+				SDKROOT = iphoneos4.1;
 			};
 			name = Release;
 		};

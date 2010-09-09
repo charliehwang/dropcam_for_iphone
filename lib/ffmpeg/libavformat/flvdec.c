@@ -188,17 +188,17 @@ static int amf_parse_object(AVFormatContext *s, AVStream *astream, AVStream *vst
 
         if(amf_type == AMF_DATA_TYPE_BOOL) {
             av_strlcpy(str_val, num_val > 0 ? "true" : "false", sizeof(str_val));
-            av_metadata_set(&s->metadata, key, str_val);
+            av_metadata_set2(&s->metadata, key, str_val, 0);
         } else if(amf_type == AMF_DATA_TYPE_NUMBER) {
             snprintf(str_val, sizeof(str_val), "%.f", num_val);
-            av_metadata_set(&s->metadata, key, str_val);
+            av_metadata_set2(&s->metadata, key, str_val, 0);
             if(!strcmp(key, "duration")) s->duration = num_val * AV_TIME_BASE;
             else if(!strcmp(key, "videodatarate") && vcodec && 0 <= (int)(num_val * 1024.0))
                 vcodec->bit_rate = num_val * 1024.0;
             else if(!strcmp(key, "audiodatarate") && acodec && 0 <= (int)(num_val * 1024.0))
                 acodec->bit_rate = num_val * 1024.0;
         } else if (amf_type == AMF_DATA_TYPE_STRING)
-          av_metadata_set(&s->metadata, key, str_val);
+            av_metadata_set2(&s->metadata, key, str_val, 0);
     }
 
     return 0;
@@ -414,7 +414,10 @@ static int flv_read_packet(AVFormatContext *s, AVPacket *pkt)
                 ff_mpeg4audio_get_config(&cfg, st->codec->extradata,
                                          st->codec->extradata_size);
                 st->codec->channels = cfg.channels;
-                st->codec->sample_rate = cfg.sample_rate;
+                if (cfg.ext_sample_rate)
+                    st->codec->sample_rate = cfg.ext_sample_rate;
+                else
+                    st->codec->sample_rate = cfg.sample_rate;
                 dprintf(s, "mp4a config channels %d sample rate %d\n",
                         st->codec->channels, st->codec->sample_rate);
             }
@@ -449,6 +452,39 @@ leave:
     return ret;
 }
 
+static int flv_read_seek(AVFormatContext *s, int stream_index,
+    int64_t ts, int flags)
+{
+    return av_url_read_fseek(s->pb, stream_index, ts, flags);
+}
+
+#if 0 /* don't know enough to implement this */
+static int flv_read_seek2(AVFormatContext *s, int stream_index,
+    int64_t min_ts, int64_t ts, int64_t max_ts, int flags)
+{
+    int ret = AVERROR(ENOSYS);
+
+    if (ts - min_ts > (uint64_t)(max_ts - ts)) flags |= AVSEEK_FLAG_BACKWARD;
+
+    if (url_is_streamed(s->pb)) {
+        if (stream_index < 0) {
+            stream_index = av_find_default_stream_index(s);
+            if (stream_index < 0)
+                return -1;
+
+            /* timestamp for default must be expressed in AV_TIME_BASE units */
+            ts = av_rescale_rnd(ts, 1000, AV_TIME_BASE,
+                flags & AVSEEK_FLAG_BACKWARD ? AV_ROUND_DOWN : AV_ROUND_UP);
+        }
+        ret = av_url_read_fseek(s->pb, stream_index, ts, flags);
+    }
+
+    if (ret == AVERROR(ENOSYS))
+        ret = av_seek_frame(s, stream_index, ts, flags);
+    return ret;
+}
+#endif
+
 AVInputFormat flv_demuxer = {
     "flv",
     NULL_IF_CONFIG_SMALL("FLV format"),
@@ -456,6 +492,10 @@ AVInputFormat flv_demuxer = {
     flv_probe,
     flv_read_header,
     flv_read_packet,
+    .read_seek = flv_read_seek,
+#if 0
+    .read_seek2 = flv_read_seek2,
+#endif
     .extensions = "flv",
     .value = CODEC_ID_FLV1,
 };

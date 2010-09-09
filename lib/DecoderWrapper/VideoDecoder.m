@@ -11,6 +11,8 @@
 #include <avcodec.h>
 #include <swscale.h>
 
+//#define SHOW_DEBUG_MV
+
 LogCallbackfn g_logCallbackFn = NULL;
 
 static void av_log_callback(void *ptr, 
@@ -65,6 +67,9 @@ static void av_log_callback(void *ptr,
 		codecCtx->extradata_size = [privateData length];
 		[privateData getBytes:codecCtx->extradata length:codecCtx->extradata_size];
 		codecCtx->pix_fmt = PIX_FMT_YUV420P;
+#ifdef SHOW_DEBUG_MV
+		codecCtx->debug_mv = 0xFF;
+#endif
 		
 		srcFrame = avcodec_alloc_frame();
 		dstFrame = avcodec_alloc_frame();
@@ -125,7 +130,7 @@ static void av_log_callback(void *ptr,
 	if (!frameReady)
 		return nil;
 	
-	sws_scale(convertCtx, srcFrame->data, srcFrame->linesize, 0, codecCtx->height, dstFrame->data, dstFrame->linesize);
+	sws_scale(convertCtx, (const uint8_t**)srcFrame->data, srcFrame->linesize, 0, codecCtx->height, dstFrame->data, dstFrame->linesize);
 	
 	return [NSData dataWithBytesNoCopy:outputBuf length:outputBufLen freeWhenDone:NO];
 }

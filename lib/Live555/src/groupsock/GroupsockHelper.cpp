@@ -49,13 +49,7 @@ NoReuse::~NoReuse() {
   reuseFlag = 1;
 }
 
-int setupDatagramSocket(UsageEnvironment& env, Port port,
-#ifdef IP_MULTICAST_LOOP
-			Boolean setLoopback
-#else
-			Boolean
-#endif
-) {
+int setupDatagramSocket(UsageEnvironment& env, Port port) {
   if (!initializeWinsockIfNecessary()) {
     socketErr(env, "Failed to initialize 'winsock': ");
     return -1;
@@ -87,7 +81,7 @@ int setupDatagramSocket(UsageEnvironment& env, Port port,
 #endif
 
 #ifdef IP_MULTICAST_LOOP
-  const u_int8_t loop = (u_int8_t)setLoopback;
+  const u_int8_t loop = 1;
   if (setsockopt(newSocket, IPPROTO_IP, IP_MULTICAST_LOOP,
 		 (const char*)&loop, sizeof loop) < 0) {
     socketErr(env, "setsockopt(IP_MULTICAST_LOOP) error: ");
@@ -144,6 +138,19 @@ Boolean makeSocketNonBlocking(int sock) {
 #else
   int curFlags = fcntl(sock, F_GETFL, 0);
   return fcntl(sock, F_SETFL, curFlags|O_NONBLOCK) >= 0;
+#endif
+}
+
+Boolean makeSocketBlocking(int sock) {
+#if defined(__WIN32__) || defined(_WIN32) || defined(IMN_PIM)
+  unsigned long arg = 0;
+  return ioctlsocket(sock, FIONBIO, &arg) == 0;
+#elif defined(VXWORKS)
+  int arg = 0;
+  return ioctl(sock, FIONBIO, (int)&arg) == 0;
+#else
+  int curFlags = fcntl(sock, F_GETFL, 0);
+  return fcntl(sock, F_SETFL, curFlags&(~O_NONBLOCK)) >= 0;
 #endif
 }
 
@@ -462,16 +469,7 @@ Boolean socketLeaveGroup(UsageEnvironment&, int socket,
 // The source-specific join/leave operations require special setsockopt()
 // commands, and a special structure (ip_mreq_source).  If the include files
 // didn't define these, we do so here:
-#if !defined(IP_ADD_SOURCE_MEMBERSHIP) || defined(__CYGWIN32__)
-// NOTE TO CYGWIN DEVELOPERS:
-//    The "defined(__CYGWIN32__)" test was added above, because - as of January 2007 - the Cygwin header files
-//    define IP_ADD_SOURCE_MEMBERSHIP (and IP_DROP_SOURCE_MEMBERSHIP), but do not define ip_mreq_source.
-//    This has been acknowledged as a bug (see <http://cygwin.com/ml/cygwin/2007-01/msg00516.html>), but it's
-//    not clear when it is going to be fixed.  When the Cygwin header files finally define "ip_mreq_source",
-//    this code will no longer compile, due to "ip_mreq_source" being defined twice.  When this happens, please
-//    let us know, by sending email to the "live-devel" mailing list.
-//    (See <http://lists.live555.com/mailman/listinfo/live-devel/> to subscribe to that mailing list.)
-// END NOTE TO CYGWIN DEVELOPERS
+#if !defined(IP_ADD_SOURCE_MEMBERSHIP)
 struct ip_mreq_source {
   struct  in_addr imr_multiaddr;  /* IP multicast address of group */
   struct  in_addr imr_sourceaddr; /* IP address of source */

@@ -1,7 +1,7 @@
 /*
  CHDataStructures.framework -- CHDeque.h
  
- Copyright (c) 2008-2009, Quinn Taylor <http://homepage.mac.com/quinntaylor>
+ Copyright (c) 2008-2010, Quinn Taylor <http://homepage.mac.com/quinntaylor>
  
  Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
  
@@ -18,6 +18,9 @@
 
 /**
  A <a href="http://en.wikipedia.org/wiki/Deque">deque</a> protocol with methods for insertion and removal on both ends. This differs from standard stacks (where objects are inserted and removed from the same end, a.k.a. LIFO) and queues (where objects are inserted at one end and removed at the other, a.k.a. FIFO). However, a deque can act as either a stack or a queue (or other possible sub-types) by selectively restricting a subset of its input and output operations.
+ 
+ @see CHQueue
+ @see CHStack
  */
 @protocol CHDeque
 #if OBJC_API_2
@@ -40,33 +43,6 @@
  */
 - (id) initWithArray:(NSArray*)anArray;
 
-#pragma mark Adding Objects
-/** @name Adding Objects */
-// @{
-
-/**
- Add an object to the front of the deque.
- 
- @param anObject The object to add to the front of the deque.
- @throw NSInvalidArgumentException If @a anObject is @c nil.
- 
- @see firstObject
- @see removeFirstObject
- */
-- (void) prependObject:(id)anObject;
-
-/**
- Add an object to the back of the deque.
- 
- @param anObject The object to add to the back of the deque.
- @throw NSInvalidArgumentException If @a anObject is @c nil.
-
- @see lastObject
- @see removeLastObject
- */
-- (void) appendObject:(id)anObject;
-
-// @}
 #pragma mark Querying Contents
 /** @name Querying Contents */
 // @{
@@ -77,7 +53,6 @@
  @return An array with the objects in this deque. If the deque is empty, the array is also empty.
  
  @see count
- @see countByEnumeratingWithState:objects:count:
  @see objectEnumerator
  @see removeAllObjects
  @see reverseObjectEnumerator
@@ -125,6 +100,30 @@
 - (id) firstObject;
 
 /**
+ Returns the lowest index of a given object, matched using @c isEqual:.
+ 
+ @param anObject The object to search for in the receiver.
+ @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c NSNotFound.
+ 
+ @see indexOfObjectIdenticalTo:
+ @see objectAtIndex:
+ @see removeObjectAtIndex:
+ */
+- (NSUInteger) indexOfObject:(id)anObject;
+
+/**
+ Returns the lowest index of a given object, matched using the == operator.
+ 
+ @param anObject The object to be matched and located in the receiver.
+ @return The index of the first object which is equal to @a anObject. If none of the objects in the receiver match @a anObject, returns @c NSNotFound.
+ 
+ @see indexOfObject:
+ @see objectAtIndex:
+ @see removeObjectAtIndex:
+ */
+- (NSUInteger) indexOfObjectIdenticalTo:(id)anObject;
+
+/**
  Compares the receiving deque to another deque. Two deques have equal contents if they each hold the same number of objects and objects at a given position in each deque satisfy the \link NSObject#isEqual: -isEqual:\endlink test.
  
  @param otherDeque A deque.
@@ -142,6 +141,20 @@
 - (id) lastObject;
 
 /**
+ Returns the object located at @a index in the receiver.
+ 
+ @param index An index from which to retrieve an object.
+ @return The object located at @a index.
+ 
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ 
+ @see indexOfObject:
+ @see indexOfObjectIdenticalTo:
+ @see removeObjectAtIndex:
+ */
+- (id) objectAtIndex:(NSUInteger)index;
+
+/**
  Returns an enumerator that accesses each object in the deque from front to back.
  
  @return An enumerator that accesses each object in the deque from front to back. The enumerator returned is never @c nil; if the deque is empty, the enumerator will always return @c nil for \link NSEnumerator#nextObject -nextObject\endlink and an empty array for \link NSEnumerator#allObjects -allObjects\endlink.
@@ -150,10 +163,26 @@
  @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
  
  @see allObjects
- @see countByEnumeratingWithState:objects:count:
  @see reverseObjectEnumerator
  */
 - (NSEnumerator*) objectEnumerator;
+
+/**
+ Returns an array containing the objects in the receiver at the indexes specified by a given index set.
+ 
+ @param indexes A set of positions corresponding to objects to retrieve from the receiver.
+ @return A new array containing the objects in the receiver specified by @a indexes.
+ 
+ @throw NSRangeException if any location in @a indexes exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a indexes is @c nil.
+ 
+ @attention To retrieve objects in a given NSRange, pass <code>[NSIndexSet indexSetWithIndexesInRange:range]</code> as the parameter to this method.
+ 
+ @see allObjects
+ @see objectAtIndex:
+ @see removeObjectsAtIndexes:
+ */
+- (NSArray*) objectsAtIndexes:(NSIndexSet*)indexes;
 
 /**
  Returns an enumerator that accesses each object in the deque from back to front.
@@ -164,15 +193,62 @@
  @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
  
  @see allObjects
- @see countByEnumeratingWithState:objects:count:
  @see objectEnumerator
  */
 - (NSEnumerator*) reverseObjectEnumerator;
 
 // @}
-#pragma mark Removing Objects
-/** @name Removing Objects */
+#pragma mark Modifying Contents
+/** @name Modifying Contents */
 // @{
+
+/**
+ Add an object to the back of the deque.
+ 
+ @param anObject The object to add to the back of the deque.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ 
+ @see lastObject
+ @see removeLastObject
+ */
+- (void) appendObject:(id)anObject;
+
+/**
+ Exchange the objects in the receiver at given indexes.
+ 
+ @param idx1 The index of the object to replace with the object at @a idx2.
+ @param idx2 The index of the object to replace with the object at @a idx1.
+ 
+ @throw NSRangeException if @a idx1 or @a idx2 exceeds the bounds of the receiver.
+ 
+ @see indexOfObject:
+ @see objectAtIndex:
+ */
+- (void) exchangeObjectAtIndex:(NSUInteger)idx1 withObjectAtIndex:(NSUInteger)idx2;
+
+/**
+ Add an object to the front of the deque.
+ 
+ @param anObject The object to add to the front of the deque.
+ 
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
+ 
+ @see firstObject
+ @see removeFirstObject
+ */
+- (void) prependObject:(id)anObject;
+
+/**
+ Empty the receiver of all of its members.
+ 
+ @see allObjects
+ @see removeFirstObject
+ @see removeLastObject
+ @see removeObject:
+ @see removeObjectIdenticalTo:
+ */
+- (void) removeAllObjects;
 
 /**
  Remove the first object in the deque; no effect if it is empty.
@@ -205,6 +281,19 @@
 - (void) removeObject:(id)anObject;
 
 /**
+ Remove the object at a given index from the receiver.
+ 
+ @param index The index of the object to remove.
+ 
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ 
+ @see indexOfObject:
+ @see indexOfObjectIdenticalTo:
+ @see objectAtIndex:
+ */
+- (void) removeObjectAtIndex:(NSUInteger)index;
+
+/**
  Remove @b all occurrences of @a anObject, matched using the == operator.
  
  @param anObject The object to be removed from the deque.
@@ -217,82 +306,30 @@
 - (void) removeObjectIdenticalTo:(id)anObject;
 
 /**
- Empty the receiver of all of its members.
+ Remove the objects at the specified indexes from the receiver. Indexes of elements beyond the first specified index will decrease.
+ @param indexes A set of positions corresponding to objects to remove from the receiver.
  
- @see allObjects
- @see removeFirstObject
- @see removeLastObject
- @see removeObject:
- @see removeObjectIdenticalTo:
+ @throw NSRangeException if any location in @a indexes exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a indexes is @c nil.
+ 
+ @attention To remove objects in a given @c NSRange, pass <code>[NSIndexSet indexSetWithIndexesInRange:range]</code> as the parameter to this method.
+ 
+ @see objectsAtIndexes:
+ @see removeAllObjects
+ @see removeObjectAtIndex:
  */
-- (void) removeAllObjects;
-
-// @}
-#pragma mark <NSCoding>
-/** @name <NSCoding> */
-// @{
+- (void) removeObjectsAtIndexes:(NSIndexSet*)indexes;
 
 /**
- Initialize the receiver using data from a given keyed unarchiver.
+ Replaces the object at a given index with a given object.
  
- @param decoder A keyed unarchiver object.
+ @param index The index of the object to be replaced.
+ @param anObject The object with which to replace the object at @a index in the receiver.
  
- @see NSCoding protocol
+ @throw NSRangeException if @a index exceeds the bounds of the receiver.
+ @throw NSInvalidArgumentException if @a anObject is @c nil.
  */
-- (id) initWithCoder:(NSCoder*)decoder;
-
-/**
- Encodes data from the receiver using a given keyed archiver.
- 
- @param encoder A keyed archiver object.
- 
- @see NSCoding protocol
- */
-- (void) encodeWithCoder:(NSCoder*)encoder;
-
-// @}
-#pragma mark <NSCopying>
-/** @name <NSCopying> */
-// @{
-
-/**
- Returns a new instance that is a mutable copy of the receiver. If garbage collection is @b not enabled, the copy is retained before being returned, but the sender is responsible for releasing it.
- 
- @param zone An area of memory from which to allocate the new instance. If zone is @c nil, the default zone is used. 
- 
- @note The default \link NSObject#copy -copy\endlink method invokes this method with a @c nil argument.
- 
- @see NSCopying protocol
- */
-- (id) copyWithZone:(NSZone*)zone;
-
-// @}
-#pragma mark <NSFastEnumeration>
-/** @name <NSFastEnumeration> */
-// @{
-
-#if OBJC_API_2
-/**
- Called within <code>@b for (type variable @b in collection)</code> constructs. Returns by reference a C array of objects over which the sender should iterate, and as the return value the number of objects in the array.
- 
- @param state Context information used to track progress of an enumeration.
- @param stackbuf Pointer to a C array into which the receiver may copy objects for the sender to iterate over.
- @param len The maximum number of objects that may be stored in @a stackbuf.
- @return The number of objects in @c state->itemsPtr that may be iterated over, or @c 0 when the iteration is finished.
- 
- @warning Modifying a collection while it is being enumerated is unsafe, and may cause a mutation exception to be raised.
- 
- @since Mac OS X v10.5 and later.
- 
- @see NSFastEnumeration protocol
- @see allObjects
- @see objectEnumerator
- @see reverseObjectEnumerator
- */
-- (NSUInteger) countByEnumeratingWithState:(NSFastEnumerationState*)state
-                                   objects:(id*)stackbuf
-                                     count:(NSUInteger)len;
-#endif
+- (void) replaceObjectAtIndex:(NSUInteger)index withObject:(id)anObject;
 
 // @}
 @end

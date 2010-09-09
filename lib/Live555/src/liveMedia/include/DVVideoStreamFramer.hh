@@ -26,18 +26,21 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 #endif
 
 #define DV_DIF_BLOCK_SIZE 80
-#define DV_SAVED_INITIAL_BLOCKS_SIZE (6*DV_DIF_BLOCK_SIZE) /* enough initial data to parse the profile */
+#define DV_NUM_BLOCKS_PER_SEQUENCE 150
+#define DV_SAVED_INITIAL_BLOCKS_SIZE ((DV_NUM_BLOCKS_PER_SEQUENCE+6-1)*DV_DIF_BLOCK_SIZE)
+    /* enough data to ensure that it contains an intact 6-block header (which occurs at the start of a 150-block sequence) */
 
 class DVVideoStreamFramer: public FramedFilter {
 public:
   static DVVideoStreamFramer*
-  createNew(UsageEnvironment& env, FramedSource* inputSource);
-
+  createNew(UsageEnvironment& env, FramedSource* inputSource, Boolean sourceIsSeekable = False);
+      // Set "sourceIsSeekable" to True if the input source is a seekable object (e.g. a file), and the server that uses us
+      // does a seek-to-zero on the source before reading from it.  (Our RTSP server implementation does this.)
   char const* profileName();
+  Boolean getFrameParameters(unsigned& frameSize/*bytes*/, double& frameDuration/*microseconds*/);
 
 protected:
-  DVVideoStreamFramer(UsageEnvironment& env,
-		      FramedSource* inputSource);
+  DVVideoStreamFramer(UsageEnvironment& env, FramedSource* inputSource, Boolean sourceIsSeekable);
       // called only by createNew(), or by subclass constructors
   virtual ~DVVideoStreamFramer();
 
@@ -47,16 +50,20 @@ private:
   virtual void doGetNextFrame();
 
 private:
+  void getAndDeliverData(); // used to implement "doGetNextFrame()"
   static void afterGettingFrame(void* clientData, unsigned frameSize,
                                 unsigned numTruncatedBytes,
                                 struct timeval presentationTime,
                                 unsigned durationInMicroseconds);
   void afterGettingFrame1(unsigned frameSize, unsigned numTruncatedBytes);
+  void getProfile();
 
 private:
-  char const* fProfileName;
+  void const* fOurProfile;
+  struct timeval fNextFramePresentationTime;
   unsigned char fSavedInitialBlocks[DV_SAVED_INITIAL_BLOCKS_SIZE];
   char fInitialBlocksPresent;
+  Boolean fSourceIsSeekable;
 };
 
 #endif

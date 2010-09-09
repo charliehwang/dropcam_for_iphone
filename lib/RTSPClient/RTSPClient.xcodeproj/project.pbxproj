@@ -9,32 +9,13 @@
 /* Begin PBXBuildFile section */
 		4640799C10FEC9B1001245F2 /* RTSPClientSession.h in Headers */ = {isa = PBXBuildFile; fileRef = 4640799A10FEC9B1001245F2 /* RTSPClientSession.h */; };
 		4640799D10FEC9B1001245F2 /* RTSPClientSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = 4640799B10FEC9B1001245F2 /* RTSPClientSession.mm */; };
-		46D8A93610FFB89400D913F6 /* libLive555.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 46D8A93510FFB89100D913F6 /* libLive555.a */; };
 		AA747D9F0F9514B9006C5449 /* RTSPClient_Prefix.pch in Headers */ = {isa = PBXBuildFile; fileRef = AA747D9E0F9514B9006C5449 /* RTSPClient_Prefix.pch */; };
 		AACBBE4A0F95108600F1A2B1 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AACBBE490F95108600F1A2B1 /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		46D8A93410FFB89100D913F6 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 46D8A93010FFB89100D913F6 /* Live555.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = D2AAC07E0554694100DB518D;
-			remoteInfo = Live555;
-		};
-		46D8A93910FFB89E00D913F6 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 46D8A93010FFB89100D913F6 /* Live555.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = D2AAC07D0554694100DB518D;
-			remoteInfo = Live555;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
 		4640799A10FEC9B1001245F2 /* RTSPClientSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RTSPClientSession.h; sourceTree = "<group>"; };
 		4640799B10FEC9B1001245F2 /* RTSPClientSession.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = RTSPClientSession.mm; sourceTree = "<group>"; };
-		46D8A93010FFB89100D913F6 /* Live555.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = Live555.xcodeproj; path = ../Live555/Live555.xcodeproj; sourceTree = SOURCE_ROOT; };
 		AA747D9E0F9514B9006C5449 /* RTSPClient_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RTSPClient_Prefix.pch; sourceTree = SOURCE_ROOT; };
 		AACBBE490F95108600F1A2B1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		D2AAC07E0554694100DB518D /* libRTSPClient.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libRTSPClient.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -46,7 +27,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				AACBBE4A0F95108600F1A2B1 /* Foundation.framework in Frameworks */,
-				46D8A93610FFB89400D913F6 /* libLive555.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,7 +44,6 @@
 		0867D691FE84028FC02AAC07 /* RTSPClient */ = {
 			isa = PBXGroup;
 			children = (
-				46D8A93010FFB89100D913F6 /* Live555.xcodeproj */,
 				08FB77AEFE84172EC02AAC07 /* Classes */,
 				32C88DFF0371C24200C91783 /* Other Sources */,
 				0867D69AFE84028FC02AAC07 /* Frameworks */,
@@ -98,14 +77,6 @@
 			name = "Other Sources";
 			sourceTree = "<group>";
 		};
-		46D8A93110FFB89100D913F6 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				46D8A93510FFB89100D913F6 /* libLive555.a */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -132,7 +103,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				46D8A93A10FFB89E00D913F6 /* PBXTargetDependency */,
 			);
 			name = RTSPClient;
 			productName = RTSPClient;
@@ -146,32 +116,23 @@
 			isa = PBXProject;
 			buildConfigurationList = 1DEB922208733DC00010E9CD /* Build configuration list for PBXProject "RTSPClient" */;
 			compatibilityVersion = "Xcode 3.1";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				English,
+				Japanese,
+				French,
+				German,
+			);
 			mainGroup = 0867D691FE84028FC02AAC07 /* RTSPClient */;
 			productRefGroup = 034768DFFF38A50411DB9C8B /* Products */;
 			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = 46D8A93110FFB89100D913F6 /* Products */;
-					ProjectRef = 46D8A93010FFB89100D913F6 /* Live555.xcodeproj */;
-				},
-			);
 			projectRoot = "";
 			targets = (
 				D2AAC07D0554694100DB518D /* RTSPClient */,
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXReferenceProxy section */
-		46D8A93510FFB89100D913F6 /* libLive555.a */ = {
-			isa = PBXReferenceProxy;
-			fileType = archive.ar;
-			path = libLive555.a;
-			remoteRef = 46D8A93410FFB89100D913F6 /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-/* End PBXReferenceProxy section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D2AAC07B0554694100DB518D /* Sources */ = {
@@ -184,20 +145,11 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		46D8A93A10FFB89E00D913F6 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = Live555;
-			targetProxy = 46D8A93910FFB89E00D913F6 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin XCBuildConfiguration section */
 		1DEB921F08733DC00010E9CD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				COPY_PHASE_STRIP = NO;
 				DSTROOT = /tmp/RTSPClient.dst;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -215,7 +167,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				DSTROOT = /tmp/RTSPClient.dst;
 				GCC_MODEL_TUNING = G5;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
@@ -232,12 +183,14 @@
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "../Live555/**";
+				IPHONEOS_DEPLOYMENT_TARGET = 3.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PREBINDING = NO;
-				SDKROOT = iphoneos3.0;
+				SDKROOT = iphoneos4.1;
 			};
 			name = Debug;
 		};
@@ -247,12 +200,14 @@
 				ARCHS = "$(ARCHS_STANDARD_32_BIT)";
 				GCC_C_LANGUAGE_STANDARD = c99;
 				GCC_INLINES_ARE_PRIVATE_EXTERN = YES;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "../Live555/**";
+				IPHONEOS_DEPLOYMENT_TARGET = 3.0;
 				OTHER_LDFLAGS = "-ObjC";
 				PREBINDING = NO;
-				SDKROOT = iphoneos3.0;
+				SDKROOT = iphoneos4.1;
 			};
 			name = Release;
 		};
